@@ -86,6 +86,17 @@ function hasDuplicates(array) {
     return false;
 }
 
+// בודקת אם צבע מסוים כבר נמצא בקובייה אחרת (לא בקובייה שבמקום index).
+// משתמשים בזה כדי למנוע מהשחקן לשים את אותו צבע פעמיים.
+function isColorUsedElsewhere(array, colorNumber, index) {
+    for (let i = 0; i < array.length; i++) {
+        if (i != index && array[i] == colorNumber) {
+            return true;
+        }
+    }
+    return false;
+}
+
 // יוצרת מערך באורך numSpots שכל התאים בו הם 0 (קוביות ריקות)
 function createEmptyArray() {
     let array = [];
@@ -201,6 +212,11 @@ function createSetupCube(cubesArea, index) {
             showMessage("setupMessage", "קודם בחר צבע מהלוח");
             return;
         }
+        // אם הצבע כבר נמצא בקובייה אחרת - קופצת הודעה והצבע לא מוכנס
+        if (isColorUsedElsewhere(secretPick, selectedColor, index)) {
+            alert("הצבע הזה כבר נמצא בצירוף! אסור להשתמש באותו צבע פעמיים.");
+            return;
+        }
         secretPick[index] = selectedColor;
         paintCube(cube, selectedColor);
         showMessage("setupMessage", "");
@@ -216,7 +232,7 @@ function confirmSecretClicked() {
         return;
     }
     if (hasDuplicates(secretPick)) {
-        showMessage("setupMessage", "אסור להשתמש באותו צבע פעמיים");
+        alert("אסור להשתמש באותו צבע פעמיים");
         return;
     }
 
@@ -299,6 +315,11 @@ function createGuessCube(cubesArea, index, rowNumber) {
             showMessage("gameMessage", "קודם בחר צבע מהלוח");
             return;
         }
+        // אם הצבע כבר נמצא בקובייה אחרת בשורה - קופצת הודעה והצבע לא מוכנס
+        if (isColorUsedElsewhere(currentGuess, selectedColor, index)) {
+            alert("הצבע הזה כבר נמצא בניחוש! אסור להשתמש באותו צבע פעמיים.");
+            return;
+        }
         currentGuess[index] = selectedColor;
         paintCube(cube, selectedColor);
         showMessage("gameMessage", "");
@@ -321,7 +342,7 @@ function guessButtonClicked() {
 
     // בדיקה 2: אסור שאותו צבע יופיע פעמיים בניחוש
     if (hasDuplicates(currentGuess)) {
-        showMessage("gameMessage", "אסור להשתמש באותו צבע פעמיים בניחוש");
+        alert("אסור להשתמש באותו צבע פעמיים בניחוש");
         return;
     }
     showMessage("gameMessage", "");
