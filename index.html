@@ -137,7 +137,7 @@
             color: #555555;
         }
 
-        #endMessage {
+        #endMessage, #computerEndMessage {
             font-size: 20px;
             font-weight: bold;
             text-align: center;
@@ -150,6 +150,12 @@
 
         .lose {
             color: #cc0000;
+        }
+
+        /* הטקסט של בול/פגיעה בשורות של המחשב */
+        .rowInfo {
+            font-size: 14px;
+            color: #333333;
         }
     </style>
 </head>
@@ -194,6 +200,7 @@
         </div>
 
         <button id="startButton">התחל משחק</button>
+        <button id="computerButton">שחק נגד מחשב</button>
         <div id="settingsMessage" class="message"></div>
     </div>
 
@@ -234,6 +241,31 @@
         <div id="secretReveal" class="cubes"></div>
 
         <button id="newGameButton">משחק חדש</button>
+    </div>
+
+    <!-- מסך 4: משחק נגד המחשב - השחקן בוחר צירוף והמחשב מנחש -->
+    <div id="computerScreen" class="screen" style="display: none;">
+        <h2>משחק נגד המחשב</h2>
+        <p id="computerInfo"></p>
+
+        <div id="computerSetupPart">
+            <p>בחר צבע מהלוח ואז לחץ על קובייה כדי לבנות צירוף סודי.
+                אסור לחזור על אותו צבע פעמיים. המחשב ינסה לנחש את הצירוף שלך!</p>
+            <div id="computerPalette" class="palette"></div>
+        </div>
+
+        <h3>הצירוף הסודי שלך:</h3>
+        <div id="computerSecretCubes" class="cubes"></div>
+
+        <button id="computerStartButton">אישור - שהמחשב יתחיל לנחש</button>
+        <div id="computerMessage" class="message"></div>
+
+        <div id="computerBoard"></div>
+
+        <button id="computerNextButton">הניחוש הבא של המחשב</button>
+        <div id="computerEndMessage"></div>
+
+        <button id="computerNewGameButton">משחק חדש</button>
     </div>
 
     <script src="script.js"></script>

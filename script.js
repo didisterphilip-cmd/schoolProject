@@ -34,6 +34,7 @@ function showScreen(screenId) {
     document.getElementById("settingsScreen").style.display = "none";
     document.getElementById("setupScreen").style.display = "none";
     document.getElementById("gameScreen").style.display = "none";
+    document.getElementById("computerScreen").style.display = "none";
     document.getElementById(screenId).style.display = "block";
 }
 
@@ -433,3 +434,343 @@ document.getElementById("startButton").addEventListener("click", startButtonClic
 document.getElementById("confirmSecretButton").addEventListener("click", confirmSecretClicked);
 document.getElementById("guessButton").addEventListener("click", guessButtonClicked);
 document.getElementById("newGameButton").addEventListener("click", newGameClicked);
+
+
+// =====================================================================
+// =====================================================================
+// =====================================================================
+//
+//                  חלק 2: משחק נגד המחשב
+//        השחקן בוחר צירוף סודי, והמחשב מנסה לנחש אותו
+//
+// =====================================================================
+// =====================================================================
+// =====================================================================
+
+// איך המחשב חושב (לפי ההוראות):
+// 1. בונים מערך S עם כל הצירופים שיכולים להיות הצירוף הסודי.
+// 2. המחשב מנחש ניחוש ראשון ומקבל משוב: כמה בול וכמה פגיעה.
+// 3. עוברים על כל צירוף ב-S ושואלים: "אם זה היה הצירוף הסודי,
+//    האם הניחוש היה מקבל בדיוק את אותו משוב?" אם לא - הצירוף בלתי אפשרי ונמחק מ-S.
+// 4. סופרים איזה צבע הכי נפוץ בצירופים שנשארו ב-S.
+// 5. נותנים לכל צירוף ב-S ניקוד: צירוף שבנוי מצבעים נפוצים יותר מקבל ניקוד גבוה יותר.
+// 6. המחשב מנחש את הצירוף עם הניקוד הכי גבוה.
+// 7. מקבלים משוב וחוזרים לשלב 3, עד שהמחשב מוצא את הצירוף.
+//
+// שינוי קטן מההוראות: בהוראות הניחוש הראשון הוא (אדום, אדום, כחול, כחול),
+// אבל במשחק שלנו אסור לחזור על צבע. לכן הניחוש הראשון הוא הצבעים הראשונים
+// ברשימה לפי הסדר, למשל עבור 4 מקומות: [1, 2, 3, 4] = אדום, ירוק, כחול, צהוב.
+//
+// מושגים:
+//   בול   = צבע נכון במקום הנכון (קובייה ירוקה במשוב)
+//   פגיעה = צבע שקיים בצירוף אבל במקום אחר (קובייה צהובה במשוב)
+
+
+// ----- משתנים של המשחק נגד המחשב -----
+
+let possibleCodes = [];       // זה המערך S - כל הצירופים שעדיין יכולים להיות הצירוף הסודי
+let playerCode = [];          // הצירוף שהשחקן בונה (0 = קובייה ריקה)
+let computerGuess = [];       // הניחוש הבא שהמחשב ינחש
+let computerAttempts = 0;     // כמה ניחושים המחשב כבר עשה
+let computerPlaying = false;  // האם המחשב כבר התחיל לנחש (ואז אסור לשנות את הצירוף)
+
+
+// ----- פונקציות עזר לחלק 2 -----
+
+// יוצרת עותק חדש של מערך (כדי ששינוי במערך אחד לא ישנה את השני)
+function copyArray(array) {
+    let newArray = [];
+    for (let i = 0; i < array.length; i++) {
+        newArray.push(array[i]);
+    }
+    return newArray;
+}
+
+// סופרת כמה "בול" יש: כמה מקומות שבהם הצבע בניחוש שווה לצבע בצירוף
+function countBulls(guess, code) {
+    let bulls = 0;
+    for (let i = 0; i < guess.length; i++) {
+        if (guess[i] == code[i]) {
+            bulls = bulls + 1;
+        }
+    }
+    return bulls;
+}
+
+// סופרת כמה "פגיעה" יש: כמה צבעים מהניחוש נמצאים בצירוף, אבל לא באותו מקום
+function countHits(guess, code) {
+    let hits = 0;
+    for (let i = 0; i < guess.length; i++) {
+        if (guess[i] != code[i] && isInArray(code, guess[i])) {
+            hits = hits + 1;
+        }
+    }
+    return hits;
+}
+
+
+// ----- פתיחת המשחק נגד המחשב -----
+
+// פועלת כשלוחצים על "שחק נגד מחשב" במסך ההגדרות
+function computerButtonClicked() {
+    // קוראים את ההגדרות, בדיוק כמו במשחק הרגיל
+    numSpots = Number(document.getElementById("spotsSelect").value);
+    numColors = Number(document.getElementById("colorsSelect").value);
+
+    // אותה בדיקה כמו במשחק הרגיל: צריך לפחות צבע אחד לכל מקום
+    if (numColors < numSpots) {
+        showMessage("settingsMessage", "מספר הצבעים חייב להיות גדול או שווה למספר המקומות!");
+        return;
+    }
+    showMessage("settingsMessage", "");
+
+    // מאפסים את כל המשתנים של המשחק נגד המחשב
+    playerCode = createEmptyArray();
+    computerAttempts = 0;
+    computerPlaying = false;
+    selectedColor = 0;
+
+    // בונים את לוח הצבעים ואת הקוביות הריקות של הצירוף
+    buildPalette("computerPalette");
+    let cubesArea = document.getElementById("computerSecretCubes");
+    cubesArea.innerHTML = "";
+    for (let i = 0; i < numSpots; i++) {
+        createPlayerCodeCube(cubesArea, i);
+    }
+
+    // מראים את החלק של בחירת הצירוף, ומסתירים את מה ששייך לניחושים
+    document.getElementById("computerSetupPart").style.display = "block";
+    document.getElementById("computerStartButton").style.display = "inline-block";
+    document.getElementById("computerNextButton").style.display = "none";
+    document.getElementById("computerBoard").innerHTML = "";
+    document.getElementById("computerEndMessage").textContent = "";
+    document.getElementById("computerEndMessage").className = "";
+    showMessage("computerMessage", "");
+    showMessage("computerInfo", "מספר מקומות: " + numSpots + " | מספר צבעים: " + numColors);
+
+    showScreen("computerScreen");
+}
+
+// יוצרת קובייה אחת בצירוף של השחקן. index = המקום של הקובייה.
+function createPlayerCodeCube(cubesArea, index) {
+    let cube = document.createElement("div");
+    cube.className = "cube";
+
+    cube.addEventListener("click", function () {
+        // אחרי שהמחשב התחיל לנחש אסור לשנות את הצירוף
+        if (computerPlaying) {
+            return;
+        }
+        if (selectedColor == 0) {
+            showMessage("computerMessage", "קודם בחר צבע מהלוח");
+            return;
+        }
+        // אם הצבע כבר נמצא בקובייה אחרת - קופצת הודעה והצבע לא מוכנס
+        if (isColorUsedElsewhere(playerCode, selectedColor, index)) {
+            alert("הצבע הזה כבר נמצא בצירוף! אסור להשתמש באותו צבע פעמיים.");
+            return;
+        }
+        playerCode[index] = selectedColor;
+        paintCube(cube, selectedColor);
+        showMessage("computerMessage", "");
+    });
+
+    cubesArea.appendChild(cube);
+}
+
+// פועלת כשלוחצים על "אישור - שהמחשב יתחיל לנחש"
+function computerStartClicked() {
+    if (!isFull(playerCode)) {
+        showMessage("computerMessage", "יש לצבוע את כל הקוביות");
+        return;
+    }
+    if (hasDuplicates(playerCode)) {
+        alert("אסור להשתמש באותו צבע פעמיים");
+        return;
+    }
+    showMessage("computerMessage", "");
+
+    // הצירוף תקין. מסתירים את לוח הצבעים ואת כפתור האישור.
+    computerPlaying = true;
+    document.getElementById("computerSetupPart").style.display = "none";
+    document.getElementById("computerStartButton").style.display = "none";
+
+    // שלב 1: בונים את המערך S עם כל הצירופים האפשריים
+    possibleCodes = [];
+    buildAllCodes([]);
+    showMessage("computerInfo", "המחשב בנה רשימה של " + possibleCodes.length +
+        " צירופים אפשריים. לחץ על \"הניחוש הבא של המחשב\" כדי לראות אותו מנחש.");
+
+    // שלב 2: הניחוש הראשון - הצבעים הראשונים לפי הסדר: 1, 2, 3 ...
+    computerGuess = [];
+    for (let i = 1; i <= numSpots; i++) {
+        computerGuess.push(i);
+    }
+
+    document.getElementById("computerNextButton").style.display = "inline-block";
+}
+
+
+// ----- שלב 1: בניית המערך S -----
+
+// בונה את כל הצירופים האפשריים (בלי צבעים כפולים) ושומרת אותם ב-possibleCodes.
+// זו פונקציה רקורסיבית (פונקציה שקוראת לעצמה):
+// current הוא הצירוף שנבנה עד עכשיו. בכל קריאה מוסיפים לו צבע אחד שעוד לא נמצא בו,
+// וממשיכים לבנות את שאר המקומות. כשהצירוף מגיע לאורך numSpots - הוא מוכן ונשמר.
+// לדוגמה עם 3 צבעים ו-2 מקומות נקבל: [1,2] [1,3] [2,1] [2,3] [3,1] [3,2]
+function buildAllCodes(current) {
+    // תנאי עצירה: הצירוף מלא - שומרים עותק שלו ב-S
+    if (current.length == numSpots) {
+        possibleCodes.push(copyArray(current));
+        return;
+    }
+
+    // מנסים להוסיף כל צבע שעוד לא נמצא בצירוף
+    for (let color = 1; color <= numColors; color++) {
+        if (!isInArray(current, color)) {
+            current.push(color);      // מוסיפים את הצבע
+            buildAllCodes(current);   // בונים את שאר הצירוף
+            current.pop();            // מוציאים את הצבע כדי לנסות את הצבע הבא
+        }
+    }
+}
+
+
+// ----- ניחוש אחד של המחשב (שלבים 2-7) -----
+
+// פועלת כשלוחצים על "הניחוש הבא של המחשב"
+function computerNextClicked() {
+    computerAttempts = computerAttempts + 1;
+
+    // המחשב מנחש את computerGuess.
+    // המשוב מחושב לפי הצירוף של השחקן (כמו שחקן שבודק ניחוש ועונה).
+    // המחשב עצמו לא "מציץ" בצירוף - הוא מקבל רק את מספר הבול ומספר הפגיעה.
+    let bulls = countBulls(computerGuess, playerCode);
+    let hits = countHits(computerGuess, playerCode);
+
+    // מציגים שורה עם הניחוש והמשוב. info = הטקסט של בול ופגיעה בשורה הזו.
+    let info = addComputerRow(computerGuess, bulls, hits);
+
+    // אם כל המקומות בול - המחשב ניצח
+    if (bulls == numSpots) {
+        document.getElementById("computerNextButton").style.display = "none";
+        let endMessage = document.getElementById("computerEndMessage");
+        endMessage.className = "lose";
+        endMessage.textContent = "המחשב פיצח את הצירוף שלך! מספר ניסיונות: " + computerAttempts;
+        return;
+    }
+
+    // שלב 3: מוחקים מ-S את כל הצירופים שלא מתאימים למשוב
+    removeImpossibleCodes(computerGuess, bulls, hits);
+
+    // מוסיפים לטקסט של השורה כמה צירופים נשארו ב-S
+    info.textContent = info.textContent + " | נשארו " + possibleCodes.length + " אפשרויות";
+
+    // שלבים 4-6: בוחרים את הניחוש הבא
+    computerGuess = chooseBestCode();
+}
+
+// שלב 3: משאירה ב-S רק צירופים שהיו נותנים את אותו משוב לניחוש.
+// לדוגמה: אם הניחוש קיבל 0 בול ו-0 פגיעה, כל צירוף שהיה נותן לניחוש
+// הזה בול או פגיעה לא יכול להיות הצירוף הסודי, ולכן הוא נמחק.
+function removeImpossibleCodes(guess, bulls, hits) {
+    let newList = [];
+    for (let i = 0; i < possibleCodes.length; i++) {
+        let code = possibleCodes[i];
+        // "אם code היה הצירוף הסודי, איזה משוב הניחוש היה מקבל?"
+        if (countBulls(guess, code) == bulls && countHits(guess, code) == hits) {
+            newList.push(code);   // אותו משוב - הצירוף עדיין אפשרי
+        }
+    }
+    possibleCodes = newList;
+}
+
+// שלבים 4, 5 ו-6: בוחרת את הצירוף עם הניקוד הכי גבוה מתוך S
+function chooseBestCode() {
+    // שלב 4: סופרים כמה פעמים כל צבע מופיע בכל הצירופים שנשארו.
+    // colorCount[3] = כמה פעמים צבע מספר 3 מופיע (המקום 0 לא בשימוש).
+    let colorCount = [];
+    for (let color = 0; color <= numColors; color++) {
+        colorCount.push(0);
+    }
+    for (let i = 0; i < possibleCodes.length; i++) {
+        for (let j = 0; j < numSpots; j++) {
+            let color = possibleCodes[i][j];
+            colorCount[color] = colorCount[color] + 1;
+        }
+    }
+
+    // שלב 5: הניקוד של צירוף = סכום הספירות של הצבעים שבו.
+    // ככה צירוף שבנוי מצבעים נפוצים מקבל ניקוד גבוה יותר.
+    // שלב 6: שומרים את הצירוף עם הניקוד הכי גבוה.
+    let bestScore = -1;
+    let bestCode = possibleCodes[0];
+    for (let i = 0; i < possibleCodes.length; i++) {
+        let score = 0;
+        for (let j = 0; j < numSpots; j++) {
+            score = score + colorCount[possibleCodes[i][j]];
+        }
+        if (score > bestScore) {
+            bestScore = score;
+            bestCode = possibleCodes[i];
+        }
+    }
+    return bestCode;
+}
+
+// מוסיפה ללוח של המחשב שורה עם הניחוש שלו, קוביות המשוב ומספר הבול והפגיעה.
+// מחזירה את הטקסט של בול ופגיעה כדי שאפשר יהיה להוסיף לו עוד מידע.
+function addComputerRow(guess, bulls, hits) {
+    let row = document.createElement("div");
+    row.className = "row";
+
+    // הכותרת, למשל "ניחוש 2"
+    let label = document.createElement("span");
+    label.className = "rowLabel";
+    label.textContent = "ניחוש " + computerAttempts;
+    row.appendChild(label);
+
+    // הקוביות של הניחוש (מספר הצבע מתורגם לצבע אמיתי ב-paintCube)
+    let cubesArea = document.createElement("div");
+    cubesArea.className = "cubes";
+    for (let i = 0; i < guess.length; i++) {
+        let cube = document.createElement("div");
+        cube.className = "cube";
+        paintCube(cube, guess[i]);
+        cubesArea.appendChild(cube);
+    }
+    row.appendChild(cubesArea);
+
+    // אזור המשוב - קוביות קטנות כמו במשחק הרגיל
+    let feedbackArea = document.createElement("div");
+    feedbackArea.className = "feedback";
+    feedbackArea.textContent = "משוב:";
+    for (let i = 0; i < guess.length; i++) {
+        let fbCube = document.createElement("div");
+        if (guess[i] == playerCode[i]) {
+            fbCube.className = "fbCube fb-green";
+        } else if (isInArray(playerCode, guess[i])) {
+            fbCube.className = "fbCube fb-yellow";
+        } else {
+            fbCube.className = "fbCube fb-gray";
+        }
+        feedbackArea.appendChild(fbCube);
+    }
+    row.appendChild(feedbackArea);
+
+    // הטקסט של בול ופגיעה
+    let info = document.createElement("span");
+    info.className = "rowInfo";
+    info.textContent = "בול: " + bulls + " | פגיעה: " + hits;
+    row.appendChild(info);
+
+    document.getElementById("computerBoard").appendChild(row);
+    return info;
+}
+
+
+// ----- חיבור הכפתורים של חלק 2 לפונקציות -----
+document.getElementById("computerButton").addEventListener("click", computerButtonClicked);
+document.getElementById("computerStartButton").addEventListener("click", computerStartClicked);
+document.getElementById("computerNextButton").addEventListener("click", computerNextClicked);
+document.getElementById("computerNewGameButton").addEventListener("click", newGameClicked);
