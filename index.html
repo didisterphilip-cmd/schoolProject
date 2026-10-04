@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>בול פגיעה - יאיר טפר</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            margin: 0;
+            padding: 20px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333333;
+        }
+
+        /* כל מסך במשחק (הגדרות, בחירת צירוף, משחק) */
+        .screen {
+            background-color: white;
+            max-width: 650px;
+            margin: 0 auto;
+            padding: 20px;
+            border: 1px solid #cccccc;
+            border-radius: 8px;
+        }
+
+        .setting {
+            margin-bottom: 15px;
+        }
+
+        select {
+            font-size: 16px;
+            padding: 3px;
+        }
+
+        button {
+            font-size: 16px;
+            padding: 8px 18px;
+            margin-top: 10px;
+            cursor: pointer;
+        }
+
+        /* הודעות שגיאה */
+        .message {
+            color: red;
+            font-weight: bold;
+            min-height: 22px;
+            margin-top: 10px;
+        }
+
+        /* לוח הצבעים שממנו בוחרים */
+        .palette {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 10px 0;
+        }
+
+        .colorButton {
+            width: 45px;
+            height: 45px;
+            border: 2px solid #555555;
+            border-radius: 50%;
+            padding: 0;
+            margin: 0;
+        }
+
+        /* הצבע שנבחר כרגע */
+        .colorButton.selected {
+            border: 4px solid black;
+            transform: scale(1.15);
+        }
+
+        /* קוביות הניחוש */
+        .cubes {
+            display: flex;
+            gap: 6px;
+        }
+
+        .cube {
+            width: 40px;
+            height: 40px;
+            border: 2px solid #555555;
+            background-color: white;
+            cursor: pointer;
+        }
+
+        /* שורה של ניסיון אחד */
+        .row {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 15px;
+            padding: 8px;
+            border-bottom: 1px solid #dddddd;
+        }
+
+        .rowLabel {
+            width: 70px;
+            font-weight: bold;
+        }
+
+        /* אזור המשוב - קוביות קטנות על רקע אפור בהיר */
+        .feedback {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            background-color: #eeeeee;
+            padding: 5px 8px;
+            border-radius: 5px;
+        }
+
+        .fbCube {
+            width: 18px;
+            height: 18px;
+            border: 1px solid #333333;
+            border-radius: 3px;
+        }
+
+        .fb-green {
+            background-color: #22aa22;
+        }
+
+        .fb-yellow {
+            background-color: #ffcc00;
+        }
+
+        .fb-gray {
+            background-color: #999999;
+        }
+
+        .legend {
+            font-size: 14px;
+            color: #555555;
+        }
+
+        #endMessage {
+            font-size: 20px;
+            font-weight: bold;
+            text-align: center;
+            margin: 15px 0;
+        }
+
+        .win {
+            color: green;
+        }
+
+        .lose {
+            color: #cc0000;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>בול פגיעה - יאיר טפר</h1>
+
+    <!-- מסך 1: הגדרות המשחק -->
+    <div id="settingsScreen" class="screen">
+        <h2>הגדרות משחק</h2>
+
+        <div class="setting">
+            <label for="spotsSelect">מספר מקומות בצירוף:</label>
+            <select id="spotsSelect">
+                <option value="3">3</option>
+                <option value="4" selected>4</option>
+                <option value="5">5</option>
+                <option value="6">6</option>
+                <option value="7">7</option>
+                <option value="8">8</option>
+            </select>
+        </div>
+
+        <div class="setting">
+            <label for="colorsSelect">מספר צבעים במשחק:</label>
+            <select id="colorsSelect">
+                <option value="3">3</option>
+                <option value="4">4</option>
+                <option value="5">5</option>
+                <option value="6" selected>6</option>
+                <option value="7">7</option>
+                <option value="8">8</option>
+            </select>
+        </div>
+
+        <div class="setting">
+            <p>מי יוצר את הצירוף הסודי?</p>
+            <input type="radio" id="modeRandom" name="mode" checked>
+            <label for="modeRandom">המחשב (אקראי)</label>
+            <br>
+            <input type="radio" id="modePlayer" name="mode">
+            <label for="modePlayer">שחקן אחר</label>
+        </div>
+
+        <button id="startButton">התחל משחק</button>
+        <div id="settingsMessage" class="message"></div>
+    </div>
+
+    <!-- מסך 2: שחקן שני בוחר את הצירוף הסודי -->
+    <div id="setupScreen" class="screen" style="display: none;">
+        <h2>בחירת צירוף סודי</h2>
+        <p>שחקן 2: בחר צבע מהלוח ואז לחץ על קובייה כדי לצבוע אותה.
+            אסור לחזור על אותו צבע פעמיים.</p>
+        <p><b>שים לב: השחקן שמנחש לא צריך להסתכל על המסך!</b></p>
+
+        <div id="setupPalette" class="palette"></div>
+        <div id="setupCubes" class="cubes"></div>
+
+        <button id="confirmSecretButton">אישור והתחלת המשחק</button>
+        <div id="setupMessage" class="message"></div>
+    </div>
+
+    <!-- מסך 3: המשחק עצמו -->
+    <div id="gameScreen" class="screen" style="display: none;">
+        <p id="gameInfo"></p>
+
+        <p>בחר צבע מהלוח ואז לחץ על קובייה בשורה הנוכחית:</p>
+        <div id="gamePalette" class="palette"></div>
+
+        <p class="legend">
+            מקרא משוב:
+            ירוק = צבע נכון במקום הנכון,
+            צהוב = הצבע קיים אבל במקום אחר,
+            אפור = הצבע לא קיים בצירוף.
+        </p>
+
+        <div id="board"></div>
+
+        <div id="gameMessage" class="message"></div>
+        <button id="guessButton">נחש</button>
+
+        <div id="endMessage"></div>
+        <div id="secretReveal" class="cubes"></div>
+
+        <button id="newGameButton">משחק חדש</button>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
