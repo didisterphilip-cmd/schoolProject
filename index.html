@@ -137,7 +137,7 @@
             color: #555555;
         }
 
-        #endMessage, #computerEndMessage {
+        #endMessage, #computerEndMessage, #netEndMessage {
             font-size: 20px;
             font-weight: bold;
             text-align: center;
@@ -153,6 +153,11 @@
         }
 
         /* הטקסט של בול/פגיעה בשורות של המחשב */
+        input[type="text"] {
+            font-size: 16px;
+            padding: 3px;
+        }
+
         .rowInfo {
             font-size: 14px;
             color: #333333;
@@ -201,6 +206,7 @@
 
         <button id="startButton">התחל משחק</button>
         <button id="computerButton">שחק נגד מחשב</button>
+        <button id="networkButton">שחק ברשת (2 מחשבים)</button>
         <div id="settingsMessage" class="message"></div>
     </div>
 
@@ -266,6 +272,49 @@
         <div id="computerEndMessage"></div>
 
         <button id="computerNewGameButton">משחק חדש</button>
+    </div>
+
+    <!-- מסך 5: משחק ברשת - שני שחקנים משני מחשבים שונים -->
+    <div id="networkScreen" class="screen" style="display: none;">
+        <h2>משחק ברשת - שני מחשבים</h2>
+
+        <!-- חיבור לשרת -->
+        <div id="netConnectPart">
+            <p>השחקן הראשון שמתחבר בוחר את הצירוף, והשחקן השני מנחש.
+                יוצר הצירוף משחק לפי ההגדרות שבחר במסך הקודם.</p>
+            <label for="serverAddress">כתובת השרת:</label>
+            <input type="text" id="serverAddress" value="localhost">
+            <button id="netConnectButton">התחבר</button>
+        </div>
+
+        <p id="netStatus"></p>
+
+        <!-- יוצר הצירוף בוחר צירוף סודי -->
+        <div id="netSecretPart" style="display: none;">
+            <p>בחר צבע מהלוח ואז לחץ על קובייה. אסור לחזור על אותו צבע פעמיים.</p>
+            <div id="netSecretPalette" class="palette"></div>
+            <div id="netSecretCubes" class="cubes"></div>
+            <button id="netSendSecretButton">שלח את הצירוף</button>
+        </div>
+
+        <!-- הלוח של הניחושים (שני השחקנים רואים אותו) -->
+        <div id="netGamePart" style="display: none;">
+            <div id="netGuessPalette" class="palette"></div>
+            <p class="legend">
+                מקרא משוב:
+                ירוק = צבע נכון במקום הנכון,
+                צהוב = הצבע קיים אבל במקום אחר,
+                אפור = הצבע לא קיים בצירוף.
+            </p>
+            <div id="netBoard"></div>
+            <button id="netGuessButton">נחש</button>
+        </div>
+
+        <div id="netMessage" class="message"></div>
+        <div id="netEndMessage"></div>
+        <div id="netSecretReveal" class="cubes"></div>
+
+        <button id="netNewGameButton">משחק חדש</button>
     </div>
 
     <script src="script.js"></script>

@@ -35,6 +35,7 @@ function showScreen(screenId) {
     document.getElementById("setupScreen").style.display = "none";
     document.getElementById("gameScreen").style.display = "none";
     document.getElementById("computerScreen").style.display = "none";
+    document.getElementById("networkScreen").style.display = "none";
     document.getElementById(screenId).style.display = "block";
 }
 
@@ -774,3 +775,405 @@ document.getElementById("computerButton").addEventListener("click", computerButt
 document.getElementById("computerStartButton").addEventListener("click", computerStartClicked);
 document.getElementById("computerNextButton").addEventListener("click", computerNextClicked);
 document.getElementById("computerNewGameButton").addEventListener("click", newGameClicked);
+
+
+// =====================================================================
+// =====================================================================
+// =====================================================================
+//
+//                  חלק 3: משחק ברשת (שני מחשבים)
+//      שני שחקנים מתחברים לשרת פייתון (server.py) דרך WebSocket
+//
+// =====================================================================
+// =====================================================================
+// =====================================================================
+
+// איך זה עובד:
+// - כל שחקן פותח את האתר במחשב שלו ומתחבר לשרת.
+// - השחקן הראשון שמתחבר הוא "יוצר הצירוף" (creator), השני הוא "המנחש" (guesser).
+// - יוצר הצירוף בוחר צירוף ושולח אותו לשרת. המנחש לא מקבל את הצירוף!
+// - המנחש שולח כל ניחוש לשרת, השרת בודק אותו ושולח את המשוב לשני השחקנים.
+// - כל ההודעות הן טקסט בפורמט JSON. JSON.stringify הופך אובייקט לטקסט,
+//   ו-JSON.parse הופך טקסט בחזרה לאובייקט.
+
+
+// ----- משתנים של המשחק ברשת -----
+
+let SERVER_PORT = 8765;     // הפורט של השרת (צריך להיות זהה לזה שבקובץ server.py)
+let socket = null;          // החיבור לשרת (WebSocket)
+let myRole = "";            // התפקיד שלי: "creator" = יוצר הצירוף, "guesser" = המנחש
+let netSecret = [];         // הצירוף שיוצר הצירוף בונה (0 = קובייה ריקה)
+let netGuess = [];          // הניחוש הנוכחי של המנחש
+let netAttempt = 0;         // מספר הניסיון הנוכחי
+let netWaiting = false;     // האם המנחש מחכה לתשובה מהשרת (כדי שלא ישלח פעמיים)
+let netGameOver = false;    // האם המשחק ברשת נגמר
+let netFeedbackArea;        // אזור המשוב של השורה הנוכחית של המנחש
+
+
+// ----- פתיחת המסך וחיבור לשרת -----
+
+// פועלת כשלוחצים על "שחק ברשת (2 מחשבים)" במסך ההגדרות
+function networkButtonClicked() {
+    // קוראים את ההגדרות (ישמשו את יוצר הצירוף)
+    numSpots = Number(document.getElementById("spotsSelect").value);
+    numColors = Number(document.getElementById("colorsSelect").value);
+
+    if (numColors < numSpots) {
+        showMessage("settingsMessage", "מספר הצבעים חייב להיות גדול או שווה למספר המקומות!");
+        return;
+    }
+    showMessage("settingsMessage", "");
+
+    // מאפסים את המסך: רואים רק את החלק של החיבור לשרת
+    myRole = "";
+    netGameOver = false;
+    netWaiting = false;
+    document.getElementById("netConnectPart").style.display = "block";
+    document.getElementById("netSecretPart").style.display = "none";
+    document.getElementById("netGamePart").style.display = "none";
+    document.getElementById("netBoard").innerHTML = "";
+    document.getElementById("netSecretReveal").innerHTML = "";
+    document.getElementById("netEndMessage").textContent = "";
+    document.getElementById("netEndMessage").className = "";
+    showMessage("netStatus", "");
+    showMessage("netMessage", "");
+
+    showScreen("networkScreen");
+}
+
+// פועלת כשלוחצים על "התחבר"
+function netConnectClicked() {
+    let address = document.getElementById("serverAddress").value;
+    showMessage("netStatus", "מתחבר לשרת...");
+
+    // יוצרים חיבור WebSocket לשרת, למשל: ws://192.168.1.15:8765
+    socket = new WebSocket("ws://" + address + ":" + SERVER_PORT);
+
+    // מחברים פונקציות לאירועים של החיבור
+    socket.addEventListener("message", netMessageReceived);   // הגיעה הודעה מהשרת
+    socket.addEventListener("error", function () {            // החיבור נכשל
+        showMessage("netStatus", "לא הצלחתי להתחבר לשרת. בדוק שהשרת פועל ושהכתובת נכונה.");
+    });
+}
+
+// שולחת הודעה לשרת. message הוא אובייקט, והוא נשלח כטקסט JSON.
+function sendToServer(message) {
+    socket.send(JSON.stringify(message));
+}
+
+
+// ----- טיפול בהודעות מהשרת -----
+
+// פועלת בכל פעם שמגיעה הודעה מהשרת.
+// לכל הודעה יש type שאומר איזה סוג הודעה זו.
+function netMessageReceived(event) {
+    let message = JSON.parse(event.data);
+
+    if (message.type == "full") {
+        // כבר יש שני שחקנים בשרת
+        showMessage("netStatus", "כבר יש שני שחקנים מחוברים לשרת. נסה שוב אחר כך.");
+        socket.close();
+    } else if (message.type == "role") {
+        // השרת אומר לי מה התפקיד שלי
+        myRole = message.role;
+        document.getElementById("netConnectPart").style.display = "none";
+        if (myRole == "creator") {
+            showMessage("netStatus", "מחובר! אתה יוצר הצירוף. בחר צירוף סודי ושלח אותו.");
+            openNetSecret();
+        } else {
+            showMessage("netStatus", "מחובר! אתה המנחש. ממתין שהשחקן השני יבחר צירוף...");
+        }
+    } else if (message.type == "partner") {
+        // (רק ליוצר הצירוף) השחקן השני התחבר
+        showMessage("netMessage", "השחקן השני התחבר!");
+    } else if (message.type == "start") {
+        // (רק למנחש) הצירוף מוכן - מתחילים לנחש עם ההגדרות של יוצר הצירוף
+        numSpots = message.spots;
+        numColors = message.colors;
+        startNetGuessing();
+    } else if (message.type == "feedback") {
+        // השרת בדק ניחוש ושלח משוב
+        showNetFeedback(message.guess, message.feedback, message.attempt);
+    } else if (message.type == "end") {
+        // המשחק נגמר (ניצחון או הפסד)
+        endNetGame(message.won, message.attempt, message.secret);
+    } else if (message.type == "left") {
+        // השחקן השני התנתק
+        if (!netGameOver) {
+            netGameOver = true;
+            showMessage("netStatus", "השחקן השני התנתק. המשחק הופסק.");
+            document.getElementById("netSecretPart").style.display = "none";
+            document.getElementById("netGuessButton").style.display = "none";
+        }
+        socket.close();
+    }
+}
+
+
+// ----- יוצר הצירוף -----
+
+// מכינה את לוח הצבעים והקוביות שבהם יוצר הצירוף בוחר את הצירוף
+function openNetSecret() {
+    netSecret = createEmptyArray();
+    selectedColor = 0;
+    buildPalette("netSecretPalette");
+
+    let cubesArea = document.getElementById("netSecretCubes");
+    cubesArea.innerHTML = "";
+    for (let i = 0; i < numSpots; i++) {
+        createNetSecretCube(cubesArea, i);
+    }
+    document.getElementById("netSecretPart").style.display = "block";
+}
+
+// יוצרת קובייה אחת בצירוף של יוצר הצירוף. index = המקום של הקובייה.
+function createNetSecretCube(cubesArea, index) {
+    let cube = document.createElement("div");
+    cube.className = "cube";
+
+    cube.addEventListener("click", function () {
+        if (selectedColor == 0) {
+            showMessage("netMessage", "קודם בחר צבע מהלוח");
+            return;
+        }
+        // אם הצבע כבר נמצא בקובייה אחרת - קופצת הודעה והצבע לא מוכנס
+        if (isColorUsedElsewhere(netSecret, selectedColor, index)) {
+            alert("הצבע הזה כבר נמצא בצירוף! אסור להשתמש באותו צבע פעמיים.");
+            return;
+        }
+        netSecret[index] = selectedColor;
+        paintCube(cube, selectedColor);
+        showMessage("netMessage", "");
+    });
+
+    cubesArea.appendChild(cube);
+}
+
+// פועלת כשלוחצים על "שלח את הצירוף"
+function netSendSecretClicked() {
+    if (!isFull(netSecret)) {
+        showMessage("netMessage", "יש לצבוע את כל הקוביות");
+        return;
+    }
+    if (hasDuplicates(netSecret)) {
+        alert("אסור להשתמש באותו צבע פעמיים");
+        return;
+    }
+
+    // שולחים לשרת את הצירוף ואת ההגדרות
+    sendToServer({ type: "secret", secret: netSecret, spots: numSpots, colors: numColors });
+
+    // מסתירים את בחירת הצירוף ומראים את הלוח (בלי לוח צבעים ובלי כפתור נחש,
+    // כי יוצר הצירוף רק צופה בניחושים של השחקן השני)
+    document.getElementById("netSecretPart").style.display = "none";
+    document.getElementById("netGamePart").style.display = "block";
+    document.getElementById("netGuessPalette").innerHTML = "";
+    document.getElementById("netGuessButton").style.display = "none";
+    showMessage("netStatus", "הצירוף נשלח! כאן תראה את הניחושים של השחקן השני.");
+    showMessage("netMessage", "");
+}
+
+
+// ----- המנחש -----
+
+// מתחילה את הניחושים של המנחש
+function startNetGuessing() {
+    netAttempt = 0;
+    selectedColor = 0;
+    showMessage("netStatus", "הצירוף מוכן! מספר מקומות: " + numSpots + " | מספר צבעים: " +
+        numColors + " | מספר ניסיונות: " + maxAttempts);
+
+    buildPalette("netGuessPalette");
+    document.getElementById("netGamePart").style.display = "block";
+    document.getElementById("netGuessButton").style.display = "inline-block";
+    addNetGuessRow();
+}
+
+// מוסיפה שורה חדשה עם קוביות ריקות לניסיון הבא של המנחש
+function addNetGuessRow() {
+    netAttempt = netAttempt + 1;
+    netGuess = createEmptyArray();
+
+    let row = document.createElement("div");
+    row.className = "row";
+
+    let label = document.createElement("span");
+    label.className = "rowLabel";
+    label.textContent = "ניסיון " + netAttempt;
+    row.appendChild(label);
+
+    let cubesArea = document.createElement("div");
+    cubesArea.className = "cubes";
+    for (let i = 0; i < numSpots; i++) {
+        createNetGuessCube(cubesArea, i, netAttempt);
+    }
+    row.appendChild(cubesArea);
+
+    // אזור המשוב - הקוביות הקטנות יתווספו כשהשרת ישלח משוב
+    let feedbackArea = document.createElement("div");
+    feedbackArea.className = "feedback";
+    feedbackArea.textContent = "משוב:";
+    row.appendChild(feedbackArea);
+    netFeedbackArea = feedbackArea;
+
+    document.getElementById("netBoard").appendChild(row);
+}
+
+// יוצרת קובייה אחת בשורת ניחוש של המנחש
+function createNetGuessCube(cubesArea, index, rowNumber) {
+    let cube = document.createElement("div");
+    cube.className = "cube";
+
+    cube.addEventListener("click", function () {
+        // אפשר לשנות רק את השורה הנוכחית, ורק כשלא מחכים לשרת
+        if (netGameOver || netWaiting || rowNumber != netAttempt) {
+            return;
+        }
+        if (selectedColor == 0) {
+            showMessage("netMessage", "קודם בחר צבע מהלוח");
+            return;
+        }
+        if (isColorUsedElsewhere(netGuess, selectedColor, index)) {
+            alert("הצבע הזה כבר נמצא בניחוש! אסור להשתמש באותו צבע פעמיים.");
+            return;
+        }
+        netGuess[index] = selectedColor;
+        paintCube(cube, selectedColor);
+        showMessage("netMessage", "");
+    });
+
+    cubesArea.appendChild(cube);
+}
+
+// פועלת כשהמנחש לוחץ על "נחש"
+function netGuessClicked() {
+    if (netGameOver || netWaiting) {
+        return;
+    }
+    if (!isFull(netGuess)) {
+        showMessage("netMessage", "יש למלא את כל הקוביות לפני שמנחשים");
+        return;
+    }
+    if (hasDuplicates(netGuess)) {
+        alert("אסור להשתמש באותו צבע פעמיים בניחוש");
+        return;
+    }
+    showMessage("netMessage", "");
+
+    // שולחים את הניחוש לשרת ומחכים לתשובה
+    netWaiting = true;
+    sendToServer({ type: "guess", guess: netGuess });
+}
+
+
+// ----- משוב וסוף משחק (לשני השחקנים) -----
+
+// מציגה את המשוב שהשרת שלח
+function showNetFeedback(guess, feedback, attempt) {
+    if (myRole == "guesser") {
+        // המנחש: מוסיפים את קוביות המשוב לשורה הנוכחית
+        addFeedbackCubes(netFeedbackArea, feedback);
+        netWaiting = false;
+
+        // סופרים קוביות ירוקות. אם המשחק לא נגמר - מוסיפים שורה חדשה.
+        let greenCount = 0;
+        for (let i = 0; i < feedback.length; i++) {
+            if (feedback[i] == "green") {
+                greenCount = greenCount + 1;
+            }
+        }
+        if (greenCount < numSpots && attempt < maxAttempts) {
+            addNetGuessRow();
+        }
+    } else {
+        // יוצר הצירוף: בונים שורה שמראה את הניחוש של השחקן השני ואת המשוב
+        let row = document.createElement("div");
+        row.className = "row";
+
+        let label = document.createElement("span");
+        label.className = "rowLabel";
+        label.textContent = "ניסיון " + attempt;
+        row.appendChild(label);
+
+        let cubesArea = document.createElement("div");
+        cubesArea.className = "cubes";
+        for (let i = 0; i < guess.length; i++) {
+            let cube = document.createElement("div");
+            cube.className = "cube";
+            paintCube(cube, guess[i]);
+            cubesArea.appendChild(cube);
+        }
+        row.appendChild(cubesArea);
+
+        let feedbackArea = document.createElement("div");
+        feedbackArea.className = "feedback";
+        feedbackArea.textContent = "משוב:";
+        addFeedbackCubes(feedbackArea, feedback);
+        row.appendChild(feedbackArea);
+
+        document.getElementById("netBoard").appendChild(row);
+    }
+}
+
+// מוסיפה קוביות משוב קטנות לאזור משוב (לפי מערך כמו ["green", "gray", "yellow"])
+function addFeedbackCubes(feedbackArea, feedback) {
+    for (let i = 0; i < feedback.length; i++) {
+        let fbCube = document.createElement("div");
+        fbCube.className = "fbCube fb-" + feedback[i];
+        feedbackArea.appendChild(fbCube);
+    }
+}
+
+// מסיימת את המשחק ברשת. ההודעה שונה לכל שחקן.
+function endNetGame(won, attempt, secretCode) {
+    netGameOver = true;
+    document.getElementById("netGuessButton").style.display = "none";
+    let endMessage = document.getElementById("netEndMessage");
+
+    if (myRole == "guesser") {
+        if (won) {
+            endMessage.className = "win";
+            endMessage.textContent = "כל הכבוד! פיצחת את הצירוף! מספר ניסיונות: " + attempt;
+        } else {
+            endMessage.className = "lose";
+            endMessage.textContent = "לא נורא, נגמרו הניסיונות. זה היה הצירוף הסודי:";
+            // רק עכשיו, בסוף המשחק, המנחש מקבל מהשרת את הצירוף הסודי
+            let revealArea = document.getElementById("netSecretReveal");
+            for (let i = 0; i < secretCode.length; i++) {
+                let cube = document.createElement("div");
+                cube.className = "cube";
+                paintCube(cube, secretCode[i]);
+                revealArea.appendChild(cube);
+            }
+        }
+    } else {
+        if (won) {
+            endMessage.className = "lose";
+            endMessage.textContent = "השחקן השני פיצח את הצירוף שלך! מספר ניסיונות: " + attempt;
+        } else {
+            endMessage.className = "win";
+            endMessage.textContent = "ניצחת! השחקן השני לא הצליח לפצח את הצירוף שלך.";
+        }
+    }
+
+    // המשחק נגמר - סוגרים את החיבור כדי שהשרת יהיה מוכן למשחק הבא
+    socket.close();
+}
+
+// פועלת כשלוחצים על "משחק חדש" במסך הרשת
+function netNewGameClicked() {
+    netGameOver = true;
+    // אם עדיין מחוברים לשרת - מתנתקים
+    if (socket != null) {
+        socket.close();
+    }
+    showScreen("settingsScreen");
+}
+
+
+// ----- חיבור הכפתורים של חלק 3 לפונקציות -----
+document.getElementById("networkButton").addEventListener("click", networkButtonClicked);
+document.getElementById("netConnectButton").addEventListener("click", netConnectClicked);
+document.getElementById("netSendSecretButton").addEventListener("click", netSendSecretClicked);
+document.getElementById("netGuessButton").addEventListener("click", netGuessClicked);
+document.getElementById("netNewGameButton").addEventListener("click", netNewGameClicked);
