@@ -70,10 +70,10 @@ async def handler(websocket):
     # מוסיפים את השחקן לרשימה ואומרים לו מה התפקיד שלו
     players.append(websocket)
     if len(players) == 1:
-        print("שחקן 1 (יוצר הצירוף) התחבר")
+        print("Player 1 (code creator) connected")
         await send(websocket, {"type": "role", "role": "creator"})
     else:
-        print("שחקן 2 (המנחש) התחבר")
+        print("Player 2 (guesser) connected")
         await send(websocket, {"type": "role", "role": "guesser"})
         await send(players[0], {"type": "partner"})
         # אם יוצר הצירוף כבר שלח צירוף - המנחש יכול להתחיל מיד
@@ -91,7 +91,7 @@ async def handler(websocket):
                 spots = message["spots"]
                 colors = message["colors"]
                 attempt = 0
-                print("התקבל צירוף סודי:", secret)
+                print("Secret code received:", secret)
                 # אם המנחש כבר מחובר - אומרים לו להתחיל
                 if len(players) == 2:
                     await send(players[1], {"type": "start", "spots": spots, "colors": colors})
@@ -101,7 +101,7 @@ async def handler(websocket):
                 guess = message["guess"]
                 attempt = attempt + 1
                 feedback = get_feedback(guess)
-                print("ניסיון", attempt, ":", guess, "->", feedback)
+                print("Attempt", attempt, ":", guess, "->", feedback)
 
                 # שולחים את הניחוש והמשוב לשני השחקנים
                 await send_to_all({"type": "feedback", "guess": guess,
@@ -116,7 +116,7 @@ async def handler(websocket):
                                        "attempt": attempt, "secret": secret})
     finally:
         # השחקן התנתק (סגר את הדף, המשחק נגמר וכו')
-        print("שחקן התנתק")
+        print("A player disconnected")
         players.remove(websocket)
         secret = []
         attempt = 0
@@ -131,7 +131,7 @@ async def handler(websocket):
 async def main():
     """מפעילה את השרת על כל כתובות המחשב (0.0.0.0) ומחכה לנצח"""
     async with websockets.serve(handler, "0.0.0.0", PORT):
-        print("השרת פועל על פורט", PORT)
+        print("Server is running on port", PORT)
         await asyncio.Future()   # מחכה לנצח, כדי שהשרת לא ייסגר
 
 
