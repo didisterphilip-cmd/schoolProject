@@ -847,7 +847,25 @@ function networkButtonClicked() {
 // פועלת כשלוחצים על "התחבר"
 function netConnectClicked() {
     let address = document.getElementById("serverAddress").value;
-    showMessage("netStatus", "מתחבר לשרת...");
+
+    // מנקים את הכתובת מטעויות נפוצות, כדי שיישאר רק ה-IP (למשל 192.168.1.15):
+    address = address.trim();                      // רווחים בהתחלה ובסוף
+    address = address.replace("http://", "");      // אם כתבו http:// בהתחלה
+    address = address.replace("https://", "");
+    address = address.replace("ws://", "");
+    address = address.split("/")[0];               // אם יש "/" בסוף
+    address = address.split(":")[0];              // אם כתבו גם פורט, למשל :8765
+    if (address == "") {
+        address = "localhost";
+    }
+    document.getElementById("serverAddress").value = address;
+
+    // אם כבר יש חיבור פתוח מניסיון קודם - סוגרים אותו לפני שמתחברים מחדש
+    if (socket != null) {
+        socket.close();
+    }
+
+    showMessage("netStatus", "מתחבר לשרת " + address + "...");
 
     // יוצרים חיבור WebSocket לשרת, למשל: ws://192.168.1.15:8765
     socket = new WebSocket("ws://" + address + ":" + SERVER_PORT);

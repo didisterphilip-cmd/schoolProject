@@ -19,6 +19,7 @@
 import asyncio      # ספרייה שמאפשרת לשרת לטפל בכמה שחקנים באותו זמן
 import json         # הופכת טקסט JSON למילון (dict) של פייתון ובחזרה
 import websockets   # הספרייה של WebSocket
+import socket       # משמשת רק כדי למצוא את כתובת ה-IP של המחשב ברשת
 
 PORT = 8765          # מספר הפורט שהשרת מאזין לו (צריך להיות זהה לזה שבקובץ script.js)
 MAX_ATTEMPTS = 7     # מספר הניסיונות של המנחש
@@ -114,6 +115,9 @@ async def handler(websocket):
                 elif attempt == MAX_ATTEMPTS:
                     await send_to_all({"type": "end", "won": False,
                                        "attempt": attempt, "secret": secret})
+    except websockets.ConnectionClosed:
+        # השחקן סגר את הדף בפתאומיות - זה בסדר, לא צריך להציג שגיאה
+        pass
     finally:
         # השחקן התנתק (סגר את הדף, המשחק נגמר וכו')
         print("A player disconnected")
@@ -128,10 +132,28 @@ async def handler(websocket):
                 pass
 
 
+def get_my_ip():
+    """מחזירה את כתובת ה-IP של המחשב ברשת המקומית (למשל 192.168.1.15).
+    את הכתובת הזו השחקן במחשב השני צריך לכתוב באתר."""
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        # לא באמת שולחים כלום - רק בודקים דרך איזה חיבור רשת המחשב יוצא החוצה
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+    except OSError:
+        ip = "127.0.0.1"   # לא הצלחנו למצוא - ואז צריך לבדוק עם ipconfig
+    finally:
+        s.close()
+    return ip
+
+
 async def main():
     """מפעילה את השרת על כל כתובות המחשב (0.0.0.0) ומחכה לנצח"""
     async with websockets.serve(handler, "0.0.0.0", PORT):
         print("Server is running on port", PORT)
+        print("On this computer, type in the game:   localhost")
+        print("On the other computer, type in the game:  " + get_my_ip())
+        print("(If that address does not work, run ipconfig and use the IPv4 Address)")
         await asyncio.Future()   # מחכה לנצח, כדי שהשרת לא ייסגר
 
 
