@@ -1225,7 +1225,8 @@ document.getElementById("netNewGameButton").addEventListener("click", netNewGame
 // ----- משתנים של משחק "צירוף על דף" -----
 // (possibleCodes, computerGuess ו-computerAttempts הם משתנים מחלק 2, ומשתמשים בהם גם כאן)
 
-let paperFeedback = [];      // המשוב שהשחקן נותן לניחוש הנוכחי: "gray" / "yellow" / "green" לכל מקום
+let paperBullsSelect;        // רשימת הבחירה של מספר הבול בשורה הנוכחית
+let paperHitsSelect;         // רשימת הבחירה של מספר הפגיעה בשורה הנוכחית
 let paperGameOver = false;   // האם המשחק נגמר
 let paperInfoText;           // הטקסט של בול/פגיעה בשורה הנוכחית (כדי להוסיף לו "נשארו X אפשרויות")
 let paperRightButton;        // הכפתור "המחשב צדק!" של השורה הנוכחית
@@ -1311,15 +1312,9 @@ function paperStartClicked() {
 
 // ----- הצגת ניחוש של המחשב -----
 
-// מוסיפה שורה עם הניחוש של המחשב ועם קוביות משוב שהשחקן לוחץ עליהן
+// מוסיפה שורה עם הניחוש של המחשב ועם שתי רשימות בחירה למשוב: בול ופגיעה
 function showPaperGuess() {
     computerAttempts = computerAttempts + 1;
-
-    // בהתחלה כל קוביות המשוב אפורות
-    paperFeedback = [];
-    for (let i = 0; i < numSpots; i++) {
-        paperFeedback.push("gray");
-    }
 
     let row = document.createElement("div");
     row.className = "row";
@@ -1340,16 +1335,25 @@ function showPaperGuess() {
     }
     row.appendChild(cubesArea);
 
-    // אזור המשוב - קוביות שהשחקן לוחץ עליהן כדי לתת משוב
+    // אזור המשוב - השחקן בוחר מספרים: כמה בול וכמה פגיעה
     let feedbackArea = document.createElement("div");
     feedbackArea.className = "feedback";
-    feedbackArea.textContent = "משוב:";
-    for (let i = 0; i < numSpots; i++) {
-        createPaperFeedbackCube(feedbackArea, i, computerAttempts);
-    }
+
+    let bullsLabel = document.createElement("span");
+    bullsLabel.textContent = "בול:";
+    feedbackArea.appendChild(bullsLabel);
+    paperBullsSelect = createNumberSelect(numSpots);
+    feedbackArea.appendChild(paperBullsSelect);
+
+    let hitsLabel = document.createElement("span");
+    hitsLabel.textContent = "פגיעה:";
+    feedbackArea.appendChild(hitsLabel);
+    paperHitsSelect = createNumberSelect(numSpots);
+    feedbackArea.appendChild(paperHitsSelect);
+
     row.appendChild(feedbackArea);
 
-    // מקום לטקסט של בול ופגיעה (יתמלא אחרי שליחת המשוב)
+    // מקום לטקסט "נשארו X אפשרויות" (יתמלא אחרי שליחת המשוב)
     paperInfoText = document.createElement("span");
     paperInfoText.className = "rowInfo";
     row.appendChild(paperInfoText);
@@ -1358,57 +1362,38 @@ function showPaperGuess() {
     paperRightButton = document.createElement("button");
     paperRightButton.className = "rightButton";
     paperRightButton.textContent = "✓ המחשב צדק!";
-    paperRightButton.addEventListener("click", function () {
-        paperRightClicked(feedbackArea);
-    });
+    paperRightButton.addEventListener("click", paperRightClicked);
     row.appendChild(paperRightButton);
 
     document.getElementById("paperBoard").appendChild(row);
 }
 
+// יוצרת רשימת בחירה (select) עם המספרים מ-0 ועד max
+function createNumberSelect(max) {
+    let select = document.createElement("select");
+    for (let number = 0; number <= max; number++) {
+        let option = document.createElement("option");
+        option.value = number;
+        option.textContent = number;
+        select.appendChild(option);
+    }
+    return select;
+}
+
 // פועלת כשלוחצים על "המחשב צדק!" - המחשב ניחש את הצירוף
-// feedbackArea = אזור המשוב של השורה, כדי לצבוע את כל הקוביות שלה בירוק
-function paperRightClicked(feedbackArea) {
+function paperRightClicked() {
     if (paperGameOver) {
         return;
     }
 
-    // צובעים את כל קוביות המשוב של השורה בירוק (כל המקומות בול)
-    let fbCubes = feedbackArea.children;
-    for (let i = 0; i < fbCubes.length; i++) {
-        fbCubes[i].className = "fbCube fbInput fb-green";
-    }
-    paperInfoText.textContent = "בול: " + numSpots + " | פגיעה: 0";
+    // כל המקומות בול: בול = מספר המקומות, פגיעה = 0
+    paperBullsSelect.value = numSpots;
+    paperHitsSelect.value = 0;
+    paperBullsSelect.disabled = true;
+    paperHitsSelect.disabled = true;
     paperRightButton.style.display = "none";
 
     endPaperGame("המחשב ניחש את הצירוף שלך! מספר ניסיונות: " + computerAttempts, "lose");
-}
-
-// יוצרת קוביית משוב אחת שהשחקן לוחץ עליה.
-// כל לחיצה מחליפה את הצבע שלה: אפור -> צהוב -> ירוק -> אפור ...
-// index = המקום של הקובייה, rowNumber = מספר הניחוש שהשורה שייכת אליו.
-function createPaperFeedbackCube(feedbackArea, index, rowNumber) {
-    let fbCube = document.createElement("div");
-    fbCube.className = "fbCube fbInput fb-gray";
-
-    fbCube.addEventListener("click", function () {
-        // אפשר לשנות רק את המשוב של הניחוש הנוכחי
-        if (paperGameOver || rowNumber != computerAttempts) {
-            return;
-        }
-
-        // מחליפים לצבע הבא
-        if (paperFeedback[index] == "gray") {
-            paperFeedback[index] = "yellow";
-        } else if (paperFeedback[index] == "yellow") {
-            paperFeedback[index] = "green";
-        } else {
-            paperFeedback[index] = "gray";
-        }
-        fbCube.className = "fbCube fbInput fb-" + paperFeedback[index];
-    });
-
-    feedbackArea.appendChild(fbCube);
 }
 
 
@@ -1420,22 +1405,22 @@ function paperSendClicked() {
         return;
     }
 
-    // סופרים מהמשוב של השחקן כמה בול (ירוק) וכמה פגיעה (צהוב)
-    let bulls = 0;
-    let hits = 0;
-    for (let i = 0; i < numSpots; i++) {
-        if (paperFeedback[i] == "green") {
-            bulls = bulls + 1;
-        } else if (paperFeedback[i] == "yellow") {
-            hits = hits + 1;
-        }
-    }
-    paperInfoText.textContent = "בול: " + bulls + " | פגיעה: " + hits;
+    // קוראים את המספרים שהשחקן בחר
+    let bulls = Number(paperBullsSelect.value);
+    let hits = Number(paperHitsSelect.value);
 
-    // המשוב נשלח - מסתירים את הכפתור "המחשב צדק!" של השורה הזו
+    // בדיקה: אי אפשר שיהיו יותר בול + פגיעה ממספר המקומות בצירוף
+    if (bulls + hits > numSpots) {
+        alert("בול + פגיעה לא יכולים להיות יותר מ-" + numSpots + ". בדוק את המשוב שוב.");
+        return;
+    }
+
+    // המשוב נשלח - נועלים את הבחירה בשורה הזו ומסתירים את הכפתור "המחשב צדק!"
+    paperBullsSelect.disabled = true;
+    paperHitsSelect.disabled = true;
     paperRightButton.style.display = "none";
 
-    // כל המקומות ירוקים - המחשב ניחש את הצירוף!
+    // כל המקומות בול - המחשב ניחש את הצירוף!
     if (bulls == numSpots) {
         endPaperGame("המחשב ניחש את הצירוף שלך! מספר ניסיונות: " + computerAttempts, "lose");
         return;
@@ -1443,8 +1428,7 @@ function paperSendClicked() {
 
     // שלב 3: מוחקים מ-S את כל הצירופים שלא מתאימים למשוב (הפונקציה מחלק 2)
     removeImpossibleCodes(computerGuess, bulls, hits);
-    paperInfoText.textContent = paperInfoText.textContent +
-        " | נשארו " + possibleCodes.length + " אפשרויות";
+    paperInfoText.textContent = "נשארו " + possibleCodes.length + " אפשרויות";
 
     // אם לא נשאר אף צירוף - אין צירוף שמתאים לכל המשובים, כלומר הייתה טעות במשוב
     if (possibleCodes.length == 0) {
