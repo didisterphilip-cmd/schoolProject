@@ -1210,6 +1210,7 @@ document.getElementById("netNewGameButton").addEventListener("click", netNewGame
 let paperFeedback = [];      // המשוב שהשחקן נותן לניחוש הנוכחי: "gray" / "yellow" / "green" לכל מקום
 let paperGameOver = false;   // האם המשחק נגמר
 let paperInfoText;           // הטקסט של בול/פגיעה בשורה הנוכחית (כדי להוסיף לו "נשארו X אפשרויות")
+let paperRightButton;        // הכפתור "המחשב צדק!" של השורה הנוכחית
 
 
 // ----- מסך בחירת סוג המשחק נגד המחשב -----
@@ -1335,7 +1336,34 @@ function showPaperGuess() {
     paperInfoText.className = "rowInfo";
     row.appendChild(paperInfoText);
 
+    // כפתור קטן לאישור שהמחשב ניחש נכון (כדי לא לצבוע את כל הקוביות בירוק אחת אחת)
+    paperRightButton = document.createElement("button");
+    paperRightButton.className = "rightButton";
+    paperRightButton.textContent = "✓ המחשב צדק!";
+    paperRightButton.addEventListener("click", function () {
+        paperRightClicked(feedbackArea);
+    });
+    row.appendChild(paperRightButton);
+
     document.getElementById("paperBoard").appendChild(row);
+}
+
+// פועלת כשלוחצים על "המחשב צדק!" - המחשב ניחש את הצירוף
+// feedbackArea = אזור המשוב של השורה, כדי לצבוע את כל הקוביות שלה בירוק
+function paperRightClicked(feedbackArea) {
+    if (paperGameOver) {
+        return;
+    }
+
+    // צובעים את כל קוביות המשוב של השורה בירוק (כל המקומות בול)
+    let fbCubes = feedbackArea.children;
+    for (let i = 0; i < fbCubes.length; i++) {
+        fbCubes[i].className = "fbCube fbInput fb-green";
+    }
+    paperInfoText.textContent = "בול: " + numSpots + " | פגיעה: 0";
+    paperRightButton.style.display = "none";
+
+    endPaperGame("המחשב ניחש את הצירוף שלך! מספר ניסיונות: " + computerAttempts, "lose");
 }
 
 // יוצרת קוביית משוב אחת שהשחקן לוחץ עליה.
@@ -1385,6 +1413,9 @@ function paperSendClicked() {
         }
     }
     paperInfoText.textContent = "בול: " + bulls + " | פגיעה: " + hits;
+
+    // המשוב נשלח - מסתירים את הכפתור "המחשב צדק!" של השורה הזו
+    paperRightButton.style.display = "none";
 
     // כל המקומות ירוקים - המחשב ניחש את הצירוף!
     if (bulls == numSpots) {
