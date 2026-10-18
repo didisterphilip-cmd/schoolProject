@@ -80,12 +80,12 @@
 
         /* כפתורי התחלה ואישור - כחול */
         #startButton, #confirmSecretButton, #computerStartButton,
-        #netConnectButton, #netSendSecretButton {
+        #netConnectButton, #netSendSecretButton, #paperStartButton, #paperSendButton {
             background-color: rgba(90, 140, 255, 0.4);
         }
 
         /* כפתורים של המשחק נגד המחשב - סגול */
-        #computerButton, #computerNextButton {
+        #computerButton, #computerNextButton, #normalComputerButton, #paperComputerButton {
             background-color: rgba(160, 100, 240, 0.38);
         }
 
@@ -100,7 +100,8 @@
         }
 
         /* כפתורי "משחק חדש" - ורוד */
-        #newGameButton, #computerNewGameButton, #netNewGameButton {
+        #newGameButton, #computerNewGameButton, #netNewGameButton,
+        #paperNewGameButton, #computerModeBackButton {
             background-color: rgba(255, 120, 170, 0.35);
         }
 
@@ -136,6 +137,36 @@
             border: 4px solid white;
             transform: scale(1.15);
             box-shadow: 0 0 0 3px rgba(60, 40, 120, 0.6);
+        }
+
+        /* צבע להצגה בלבד (לא לחיץ) עם השם שלו - במשחק "צירוף על דף" */
+        .colorItem {
+            text-align: center;
+            font-size: 14px;
+        }
+
+        .colorDot {
+            width: 40px;
+            height: 40px;
+            margin: 0 auto 4px auto;
+            border: 2px solid rgba(255, 255, 255, 0.9);
+            border-radius: 50%;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+        }
+
+        /* קוביות משוב שהשחקן לוחץ עליהן - קצת יותר גדולות כדי שיהיה קל ללחוץ */
+        .fbInput {
+            width: 26px;
+            height: 26px;
+            cursor: pointer;
+        }
+
+        /* אפשרות בחירה במסך "סוג המשחק נגד המחשב" */
+        .modeOption {
+            padding: 10px 15px;
+            margin-bottom: 12px;
+            background-color: rgba(255, 255, 255, 0.25);
+            border-radius: 12px;
         }
 
         /* ===== קוביות הניחוש ===== */
@@ -203,7 +234,7 @@
             color: #4a4870;
         }
 
-        #endMessage, #computerEndMessage, #netEndMessage {
+        #endMessage, #computerEndMessage, #netEndMessage, #paperEndMessage {
             font-size: 20px;
             font-weight: bold;
             text-align: center;
@@ -333,6 +364,50 @@
         <div id="computerEndMessage"></div>
 
         <button id="computerNewGameButton">משחק חדש</button>
+    </div>
+
+    <!-- מסך 6: בחירת סוג המשחק נגד המחשב -->
+    <div id="computerModeScreen" class="screen" style="display: none;">
+        <h2>משחק נגד המחשב - בחר סוג משחק</h2>
+
+        <div class="modeOption">
+            <button id="normalComputerButton">משחק רגיל</button>
+            <p class="legend">אתה בוחר צירוף על המסך, והמשוב לכל ניחוש מחושב אוטומטית.</p>
+        </div>
+
+        <div class="modeOption">
+            <button id="paperComputerButton">צירוף על דף - אני נותן משוב</button>
+            <p class="legend">אתה רושם צירוף על דף, והמחשב לא יודע אותו בכלל.
+                אחרי כל ניחוש אתה אומר למחשב מה המשוב, והוא ממשיך לנחש לפיו.</p>
+        </div>
+
+        <button id="computerModeBackButton">חזרה</button>
+    </div>
+
+    <!-- מסך 7: צירוף על דף - השחקן נותן משוב והמחשב מנחש -->
+    <div id="paperScreen" class="screen" style="display: none;">
+        <h2>צירוף על דף - המחשב מנחש</h2>
+
+        <div id="paperIntroPart">
+            <p id="paperInfo"></p>
+            <div id="paperColors" class="palette"></div>
+            <button id="paperStartButton">רשמתי צירוף - שהמחשב יתחיל לנחש</button>
+        </div>
+
+        <p id="paperHelp" class="legend">
+            איך נותנים משוב: לוחצים על הקוביות הקטנות שליד הניחוש של המחשב.
+            כל לחיצה מחליפה את הצבע: מאפור לצהוב, מצהוב לירוק, ומירוק שוב לאפור.
+            ירוק = צבע נכון במקום הנכון, צהוב = הצבע קיים אבל במקום אחר,
+            אפור = הצבע לא קיים בצירוף שלך.
+        </p>
+
+        <div id="paperBoard"></div>
+
+        <button id="paperSendButton">שלח משוב</button>
+        <div id="paperMessage" class="message"></div>
+        <div id="paperEndMessage"></div>
+
+        <button id="paperNewGameButton">משחק חדש</button>
     </div>
 
     <!-- מסך 5: משחק ברשת - שני שחקנים משני מחשבים שונים -->

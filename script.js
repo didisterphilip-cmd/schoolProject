@@ -36,6 +36,8 @@ function showScreen(screenId) {
     document.getElementById("gameScreen").style.display = "none";
     document.getElementById("computerScreen").style.display = "none";
     document.getElementById("networkScreen").style.display = "none";
+    document.getElementById("computerModeScreen").style.display = "none";
+    document.getElementById("paperScreen").style.display = "none";
     document.getElementById(screenId).style.display = "block";
 }
 
@@ -771,7 +773,8 @@ function addComputerRow(guess, bulls, hits) {
 
 
 // ----- חיבור הכפתורים של חלק 2 לפונקציות -----
-document.getElementById("computerButton").addEventListener("click", computerButtonClicked);
+// (הכפתור "שחק נגד מחשב" פותח קודם מסך בחירה - ראו חלק 4. משם "משחק רגיל" מגיע לכאן)
+document.getElementById("normalComputerButton").addEventListener("click", computerButtonClicked);
 document.getElementById("computerStartButton").addEventListener("click", computerStartClicked);
 document.getElementById("computerNextButton").addEventListener("click", computerNextClicked);
 document.getElementById("computerNewGameButton").addEventListener("click", newGameClicked);
@@ -1177,3 +1180,248 @@ document.getElementById("netConnectButton").addEventListener("click", netConnect
 document.getElementById("netSendSecretButton").addEventListener("click", netSendSecretClicked);
 document.getElementById("netGuessButton").addEventListener("click", netGuessClicked);
 document.getElementById("netNewGameButton").addEventListener("click", netNewGameClicked);
+
+
+// =====================================================================
+// =====================================================================
+// =====================================================================
+//
+//          חלק 4: בחירת סוג המשחק נגד המחשב + משחק "צירוף על דף"
+//      השחקן רושם צירוף על דף, והמחשב לא יודע אותו בכלל.
+//      אחרי כל ניחוש השחקן נותן למחשב משוב, והמחשב ממשיך לנחש לפיו.
+//
+// =====================================================================
+// =====================================================================
+// =====================================================================
+
+// למה צריך את המשחק הזה?
+// במשחק הרגיל נגד המחשב, השחקן בוחר צירוף על המסך, ולכן הצירוף נמצא בתוך הקוד.
+// מישהו יכול לחשוד שהמחשב "מציץ" בו. כאן הצירוף רשום רק על דף,
+// והמחשב יודע רק את מה שהשחקן אומר לו במשוב - וכך רואים שהוא באמת מנחש לבד.
+//
+// המחשב משתמש בדיוק באותה שיטה כמו בחלק 2, ובאותן פונקציות:
+// buildAllCodes (בניית S), removeImpossibleCodes (מחיקת צירופים בלתי אפשריים)
+// ו-chooseBestCode (בחירת הניחוש לפי הצבעים הנפוצים).
+
+
+// ----- משתנים של משחק "צירוף על דף" -----
+// (possibleCodes, computerGuess ו-computerAttempts הם משתנים מחלק 2, ומשתמשים בהם גם כאן)
+
+let paperFeedback = [];      // המשוב שהשחקן נותן לניחוש הנוכחי: "gray" / "yellow" / "green" לכל מקום
+let paperGameOver = false;   // האם המשחק נגמר
+let paperInfoText;           // הטקסט של בול/פגיעה בשורה הנוכחית (כדי להוסיף לו "נשארו X אפשרויות")
+
+
+// ----- מסך בחירת סוג המשחק נגד המחשב -----
+
+// פועלת כשלוחצים על "שחק נגד מחשב" במסך ההגדרות
+function openComputerModes() {
+    numSpots = Number(document.getElementById("spotsSelect").value);
+    numColors = Number(document.getElementById("colorsSelect").value);
+
+    // אותה בדיקה כמו בשאר המשחקים
+    if (numColors < numSpots) {
+        showMessage("settingsMessage", "מספר הצבעים חייב להיות גדול או שווה למספר המקומות!");
+        return;
+    }
+    showMessage("settingsMessage", "");
+    showScreen("computerModeScreen");
+}
+
+
+// ----- פתיחת משחק "צירוף על דף" -----
+
+// פועלת כשלוחצים על "צירוף על דף - אני נותן משוב"
+function paperModeClicked() {
+    paperGameOver = false;
+    computerAttempts = 0;
+
+    // ההסבר לשחקן: כמה צבעים לרשום ומאילו צבעים
+    showMessage("paperInfo", "רשום על דף צירוף סודי של " + numSpots +
+        " צבעים, מתוך הצבעים האלה, בלי לחזור על אותו צבע פעמיים. אל תראה אותו למחשב!");
+
+    // מציגים את הצבעים שבמשחק (רק להצגה - לא לוחצים עליהם)
+    let colorsArea = document.getElementById("paperColors");
+    colorsArea.innerHTML = "";
+    for (let colorNumber = 1; colorNumber <= numColors; colorNumber++) {
+        let item = document.createElement("div");
+        item.className = "colorItem";
+
+        let dot = document.createElement("div");
+        dot.className = "colorDot";
+        dot.style.backgroundColor = colorCodes[colorNumber - 1];
+        item.appendChild(dot);
+
+        let name = document.createElement("span");
+        name.textContent = colorNames[colorNumber - 1];
+        item.appendChild(name);
+
+        colorsArea.appendChild(item);
+    }
+
+    // בהתחלה רואים רק את ההסבר ואת כפתור ההתחלה
+    document.getElementById("paperIntroPart").style.display = "block";
+    document.getElementById("paperHelp").style.display = "none";
+    document.getElementById("paperSendButton").style.display = "none";
+    document.getElementById("paperBoard").innerHTML = "";
+    document.getElementById("paperEndMessage").textContent = "";
+    document.getElementById("paperEndMessage").className = "";
+    showMessage("paperMessage", "");
+
+    showScreen("paperScreen");
+}
+
+// פועלת כשלוחצים על "רשמתי צירוף - שהמחשב יתחיל לנחש"
+function paperStartClicked() {
+    document.getElementById("paperIntroPart").style.display = "none";
+    document.getElementById("paperHelp").style.display = "block";
+    document.getElementById("paperSendButton").style.display = "inline-block";
+
+    // שלב 1: בונים את המערך S עם כל הצירופים האפשריים (הפונקציה מחלק 2)
+    possibleCodes = [];
+    buildAllCodes([]);
+
+    // שלב 2: הניחוש הראשון - הצבעים הראשונים לפי הסדר: 1, 2, 3 ...
+    computerGuess = [];
+    for (let i = 1; i <= numSpots; i++) {
+        computerGuess.push(i);
+    }
+    showPaperGuess();
+}
+
+
+// ----- הצגת ניחוש של המחשב -----
+
+// מוסיפה שורה עם הניחוש של המחשב ועם קוביות משוב שהשחקן לוחץ עליהן
+function showPaperGuess() {
+    computerAttempts = computerAttempts + 1;
+
+    // בהתחלה כל קוביות המשוב אפורות
+    paperFeedback = [];
+    for (let i = 0; i < numSpots; i++) {
+        paperFeedback.push("gray");
+    }
+
+    let row = document.createElement("div");
+    row.className = "row";
+
+    let label = document.createElement("span");
+    label.className = "rowLabel";
+    label.textContent = "ניחוש " + computerAttempts;
+    row.appendChild(label);
+
+    // הקוביות של הניחוש של המחשב
+    let cubesArea = document.createElement("div");
+    cubesArea.className = "cubes";
+    for (let i = 0; i < numSpots; i++) {
+        let cube = document.createElement("div");
+        cube.className = "cube";
+        paintCube(cube, computerGuess[i]);
+        cubesArea.appendChild(cube);
+    }
+    row.appendChild(cubesArea);
+
+    // אזור המשוב - קוביות שהשחקן לוחץ עליהן כדי לתת משוב
+    let feedbackArea = document.createElement("div");
+    feedbackArea.className = "feedback";
+    feedbackArea.textContent = "משוב:";
+    for (let i = 0; i < numSpots; i++) {
+        createPaperFeedbackCube(feedbackArea, i, computerAttempts);
+    }
+    row.appendChild(feedbackArea);
+
+    // מקום לטקסט של בול ופגיעה (יתמלא אחרי שליחת המשוב)
+    paperInfoText = document.createElement("span");
+    paperInfoText.className = "rowInfo";
+    row.appendChild(paperInfoText);
+
+    document.getElementById("paperBoard").appendChild(row);
+}
+
+// יוצרת קוביית משוב אחת שהשחקן לוחץ עליה.
+// כל לחיצה מחליפה את הצבע שלה: אפור -> צהוב -> ירוק -> אפור ...
+// index = המקום של הקובייה, rowNumber = מספר הניחוש שהשורה שייכת אליו.
+function createPaperFeedbackCube(feedbackArea, index, rowNumber) {
+    let fbCube = document.createElement("div");
+    fbCube.className = "fbCube fbInput fb-gray";
+
+    fbCube.addEventListener("click", function () {
+        // אפשר לשנות רק את המשוב של הניחוש הנוכחי
+        if (paperGameOver || rowNumber != computerAttempts) {
+            return;
+        }
+
+        // מחליפים לצבע הבא
+        if (paperFeedback[index] == "gray") {
+            paperFeedback[index] = "yellow";
+        } else if (paperFeedback[index] == "yellow") {
+            paperFeedback[index] = "green";
+        } else {
+            paperFeedback[index] = "gray";
+        }
+        fbCube.className = "fbCube fbInput fb-" + paperFeedback[index];
+    });
+
+    feedbackArea.appendChild(fbCube);
+}
+
+
+// ----- קבלת המשוב מהשחקן -----
+
+// פועלת כשלוחצים על "שלח משוב"
+function paperSendClicked() {
+    if (paperGameOver) {
+        return;
+    }
+
+    // סופרים מהמשוב של השחקן כמה בול (ירוק) וכמה פגיעה (צהוב)
+    let bulls = 0;
+    let hits = 0;
+    for (let i = 0; i < numSpots; i++) {
+        if (paperFeedback[i] == "green") {
+            bulls = bulls + 1;
+        } else if (paperFeedback[i] == "yellow") {
+            hits = hits + 1;
+        }
+    }
+    paperInfoText.textContent = "בול: " + bulls + " | פגיעה: " + hits;
+
+    // כל המקומות ירוקים - המחשב ניחש את הצירוף!
+    if (bulls == numSpots) {
+        endPaperGame("המחשב ניחש את הצירוף שלך! מספר ניסיונות: " + computerAttempts, "lose");
+        return;
+    }
+
+    // שלב 3: מוחקים מ-S את כל הצירופים שלא מתאימים למשוב (הפונקציה מחלק 2)
+    removeImpossibleCodes(computerGuess, bulls, hits);
+    paperInfoText.textContent = paperInfoText.textContent +
+        " | נשארו " + possibleCodes.length + " אפשרויות";
+
+    // אם לא נשאר אף צירוף - אין צירוף שמתאים לכל המשובים, כלומר הייתה טעות במשוב
+    if (possibleCodes.length == 0) {
+        endPaperGame("אין אף צירוף שמתאים לכל המשובים שנתת. כנראה הייתה טעות באחד המשובים.", "lose");
+        return;
+    }
+
+    // שלבים 4-6: בוחרים את הניחוש הבא (הפונקציה מחלק 2) ומציגים אותו
+    computerGuess = chooseBestCode();
+    showPaperGuess();
+}
+
+// מסיימת את המשחק ומציגה הודעה. className = "win" או "lose" (קובע את צבע ההודעה)
+function endPaperGame(text, className) {
+    paperGameOver = true;
+    document.getElementById("paperSendButton").style.display = "none";
+    let endMessage = document.getElementById("paperEndMessage");
+    endMessage.className = className;
+    endMessage.textContent = text;
+}
+
+
+// ----- חיבור הכפתורים של חלק 4 לפונקציות -----
+document.getElementById("computerButton").addEventListener("click", openComputerModes);
+document.getElementById("paperComputerButton").addEventListener("click", paperModeClicked);
+document.getElementById("computerModeBackButton").addEventListener("click", newGameClicked);
+document.getElementById("paperStartButton").addEventListener("click", paperStartClicked);
+document.getElementById("paperSendButton").addEventListener("click", paperSendClicked);
+document.getElementById("paperNewGameButton").addEventListener("click", newGameClicked);
