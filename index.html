@@ -14,9 +14,9 @@
             box-sizing: border-box;
             color: #2b2d42;
             background:
-                radial-gradient(circle at 15% 20%, rgba(255, 182, 213, 0.7), transparent 40%),
-                radial-gradient(circle at 85% 25%, rgba(160, 220, 255, 0.8), transparent 40%),
-                radial-gradient(circle at 50% 95%, rgba(200, 180, 255, 0.8), transparent 45%),
+                radial-gradient(circle at 15% 20%, rgba(255, 182, 213, 0.75), transparent 40%),
+                radial-gradient(circle at 85% 25%, rgba(160, 220, 255, 0.85), transparent 40%),
+                radial-gradient(circle at 50% 95%, rgba(200, 180, 255, 0.85), transparent 45%),
                 linear-gradient(135deg, #a8c0ff, #c9b6f2);
             background-attachment: fixed;
         }
@@ -24,24 +24,70 @@
         h1 {
             text-align: center;
             color: white;
-            text-shadow: 0 2px 8px rgba(60, 40, 120, 0.35);
+            letter-spacing: 1px;
+            text-shadow: 0 2px 10px rgba(60, 40, 120, 0.35);
         }
 
         h2, h3 {
             color: #3a3560;
         }
 
-        /* ===== כל מסך במשחק - "זכוכית" שקופה ===== */
+        /* ===== אנימציות ===== */
+
+        /* המסך "מרחף" - עולה ויורד לאט מאוד */
+        @keyframes float {
+            0%   { transform: translateY(0); }
+            50%  { transform: translateY(-4px); }
+            100% { transform: translateY(0); }
+        }
+
+        /* המסך מופיע בעדינות כשעוברים אליו */
+        @keyframes appear {
+            from { opacity: 0; transform: translateY(15px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ===== כל מסך במשחק - זכוכית מרחפת ===== */
         .screen {
+            position: relative;           /* כדי שהברק (::before) יישב בדיוק על המסך */
             max-width: 650px;
             margin: 0 auto;
-            padding: 20px 25px;
-            background-color: rgba(255, 255, 255, 0.28);
-            backdrop-filter: blur(14px);              /* מטשטש את מה שמאחורי המסך */
-            -webkit-backdrop-filter: blur(14px);      /* אותו דבר לדפדפן ספארי */
-            border: 1px solid rgba(255, 255, 255, 0.55);
-            border-radius: 18px;
-            box-shadow: 0 8px 32px rgba(60, 40, 120, 0.18);
+            padding: 22px 26px;
+            /* זכוכית: בהירה יותר למעלה ושקופה יותר למטה */
+            background: linear-gradient(145deg, rgba(255, 255, 255, 0.42), rgba(255, 255, 255, 0.14));
+            backdrop-filter: blur(16px) saturate(140%);       /* מטשטש את מה שמאחורי המסך */
+            -webkit-backdrop-filter: blur(16px) saturate(140%);
+            /* מסגרת: האור "נופל" מלמעלה-שמאל, לכן שם המסגרת בהירה יותר */
+            border: 1px solid rgba(255, 255, 255, 0.35);
+            border-top-color: rgba(255, 255, 255, 0.8);
+            border-left-color: rgba(255, 255, 255, 0.7);
+            border-radius: 20px;
+            /* צל קטן ושקוף + קו אור דק בתוך הקצה העליון */
+            box-shadow:
+                0 6px 16px rgba(60, 40, 120, 0.12),
+                inset 0 1px 0 rgba(255, 255, 255, 0.7);
+            animation: appear 0.4s ease-out, float 6s ease-in-out 0.4s infinite;
+            transition: box-shadow 0.3s;
+        }
+
+        /* ברק של אור על הזכוכית (פס בהיר באלכסון בפינה העליונה) */
+        .screen::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            border-radius: 20px;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.35) 0%, rgba(255, 255, 255, 0) 35%);
+            pointer-events: none;         /* הברק לא חוסם לחיצות */
+        }
+
+        /* כשהעכבר מעל המסך - הצל מתחזק קצת */
+        .screen:hover {
+            box-shadow:
+                0 10px 26px rgba(60, 40, 120, 0.16),
+                inset 0 1px 0 rgba(255, 255, 255, 0.8);
         }
 
         .setting {
@@ -55,9 +101,18 @@
             border: 1px solid rgba(255, 255, 255, 0.8);
             border-radius: 8px;
             color: #2b2d42;
+            transition: box-shadow 0.2s, background-color 0.2s;
         }
 
-        /* ===== כפתורים: צבעוניים, שקופים קצת, עם פינות מעוגלות ===== */
+        /* כשעומדים על רשימה או על תיבת טקסט - היא זוהרת */
+        select:hover, input[type="text"]:hover,
+        select:focus, input[type="text"]:focus {
+            outline: none;
+            background-color: rgba(255, 255, 255, 0.75);
+            box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.45);
+        }
+
+        /* ===== כפתורים: זכוכית צבעונית ===== */
         button {
             font-size: 16px;
             padding: 9px 20px;
@@ -65,44 +120,59 @@
             cursor: pointer;
             color: #2b2d42;
             background-color: rgba(255, 255, 255, 0.35);
+            /* שכבת ברק עדינה מעל צבע הכפתור */
+            background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.45), rgba(255, 255, 255, 0));
             border: 1px solid rgba(255, 255, 255, 0.7);
             border-radius: 12px;
             backdrop-filter: blur(6px);
             -webkit-backdrop-filter: blur(6px);
-            transition: background-color 0.2s, transform 0.2s;
+            box-shadow:
+                0 3px 8px rgba(60, 40, 120, 0.12),
+                inset 0 1px 0 rgba(255, 255, 255, 0.7);
+            transition: transform 0.2s, box-shadow 0.2s, filter 0.2s;
         }
 
-        /* כשהעכבר מעל כפתור - הוא מתבהר ועולה קצת */
+        /* כשהעכבר מעל כפתור - הוא עולה, מתבהר וזוהר */
         button:hover {
-            transform: translateY(-2px);
-            filter: brightness(1.08);
+            transform: translateY(-3px);
+            filter: brightness(1.1);
+            box-shadow:
+                0 8px 18px rgba(60, 40, 120, 0.2),
+                0 0 0 3px rgba(255, 255, 255, 0.35),
+                inset 0 1px 0 rgba(255, 255, 255, 0.8);
+        }
+
+        /* כשלוחצים - הכפתור "נלחץ" למטה */
+        button:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 5px rgba(60, 40, 120, 0.15);
         }
 
         /* כפתורי התחלה ואישור - כחול */
         #startButton, #confirmSecretButton, #computerStartButton,
         #netConnectButton, #netSendSecretButton, #paperStartButton, #paperSendButton {
-            background-color: rgba(90, 140, 255, 0.4);
+            background-color: rgba(90, 140, 255, 0.42);
         }
 
         /* כפתורים של המשחק נגד המחשב - סגול */
         #computerButton, #computerNextButton, #normalComputerButton, #paperComputerButton {
-            background-color: rgba(160, 100, 240, 0.38);
+            background-color: rgba(160, 100, 240, 0.4);
         }
 
         /* כפתור המשחק ברשת - טורקיז */
         #networkButton {
-            background-color: rgba(40, 190, 190, 0.38);
+            background-color: rgba(40, 190, 190, 0.4);
         }
 
         /* כפתורי "נחש" - ירוק */
         #guessButton, #netGuessButton {
-            background-color: rgba(60, 190, 110, 0.4);
+            background-color: rgba(60, 190, 110, 0.42);
         }
 
-        /* כפתורי "משחק חדש" - ורוד */
+        /* כפתורי "משחק חדש" וחזרה - ורוד */
         #newGameButton, #computerNewGameButton, #netNewGameButton,
         #paperNewGameButton, #computerModeBackButton {
-            background-color: rgba(255, 120, 170, 0.35);
+            background-color: rgba(255, 120, 170, 0.38);
         }
 
         /* הודעות שגיאה */
@@ -129,14 +199,22 @@
             margin: 0;
             border: 2px solid rgba(255, 255, 255, 0.9);
             border-radius: 50%;
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+            /* ברק עגול בצד השמאלי העליון - נראה כמו כדור זכוכית */
+            background-image: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0) 45%);
+            box-shadow: 0 3px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .colorButton:hover {
+            transform: scale(1.12);
+            filter: brightness(1.1);
+            box-shadow: 0 6px 14px rgba(0, 0, 0, 0.25);
         }
 
         /* הצבע שנבחר כרגע */
         .colorButton.selected {
             border: 4px solid white;
             transform: scale(1.15);
-            box-shadow: 0 0 0 3px rgba(60, 40, 120, 0.6);
+            box-shadow: 0 0 0 3px rgba(60, 40, 120, 0.6), 0 6px 14px rgba(0, 0, 0, 0.25);
         }
 
         /* צבע להצגה בלבד (לא לחיץ) עם השם שלו - במשחק "צירוף על דף" */
@@ -151,7 +229,13 @@
             margin: 0 auto 4px auto;
             border: 2px solid rgba(255, 255, 255, 0.9);
             border-radius: 50%;
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+            background-image: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0) 45%);
+            box-shadow: 0 3px 8px rgba(0, 0, 0, 0.2);
+            transition: transform 0.2s;
+        }
+
+        .colorItem:hover .colorDot {
+            transform: scale(1.1);
         }
 
         /* קוביות משוב שהשחקן לוחץ עליהן - קצת יותר גדולות כדי שיהיה קל ללחוץ */
@@ -161,12 +245,25 @@
             cursor: pointer;
         }
 
-        /* אפשרות בחירה במסך "סוג המשחק נגד המחשב" */
+        .fbInput:hover {
+            transform: scale(1.15);
+            box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.6);
+        }
+
+        /* אפשרות בחירה במסך "סוג המשחק נגד המחשב" - כרטיס זכוכית קטן */
         .modeOption {
             padding: 10px 15px;
             margin-bottom: 12px;
-            background-color: rgba(255, 255, 255, 0.25);
-            border-radius: 12px;
+            background: linear-gradient(145deg, rgba(255, 255, 255, 0.35), rgba(255, 255, 255, 0.12));
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            border-radius: 14px;
+            box-shadow: 0 3px 10px rgba(60, 40, 120, 0.08);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .modeOption:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 18px rgba(60, 40, 120, 0.14);
         }
 
         /* ===== קוביות הניחוש ===== */
@@ -181,8 +278,16 @@
             border: 2px solid rgba(255, 255, 255, 0.85);
             border-radius: 8px;
             background-color: white;
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+            /* ברק עדין בפינה העליונה של הקובייה */
+            background-image: linear-gradient(135deg, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0) 50%);
+            box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
             cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .cube:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 14px rgba(0, 0, 0, 0.2);
         }
 
         /* ===== שורה של ניסיון אחד ===== */
@@ -193,6 +298,13 @@
             gap: 15px;
             padding: 8px;
             border-bottom: 1px solid rgba(255, 255, 255, 0.5);
+            border-radius: 10px;
+            transition: background-color 0.2s;
+        }
+
+        /* כשהעכבר מעל שורה - היא מודגשת בעדינות */
+        .row:hover {
+            background-color: rgba(255, 255, 255, 0.22);
         }
 
         .rowLabel {
@@ -205,16 +317,19 @@
             display: flex;
             align-items: center;
             gap: 4px;
-            background-color: rgba(255, 255, 255, 0.35);
+            background: linear-gradient(145deg, rgba(255, 255, 255, 0.45), rgba(255, 255, 255, 0.2));
+            border: 1px solid rgba(255, 255, 255, 0.55);
             padding: 5px 8px;
-            border-radius: 8px;
+            border-radius: 10px;
+            box-shadow: 0 2px 6px rgba(60, 40, 120, 0.08);
         }
 
         .fbCube {
             width: 18px;
             height: 18px;
-            border: 1px solid rgba(0, 0, 0, 0.35);
+            border: 1px solid rgba(0, 0, 0, 0.3);
             border-radius: 4px;
+            transition: transform 0.2s, box-shadow 0.2s;
         }
 
         .fb-green {
@@ -253,6 +368,13 @@
         .rowInfo {
             font-size: 14px;
             color: #3a3560;
+        }
+
+        /* מי שביקש במחשב "פחות אנימציות" - המסך לא ירחף */
+        @media (prefers-reduced-motion: reduce) {
+            .screen {
+                animation: none;
+            }
         }
     </style>
 </head>
