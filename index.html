@@ -32,29 +32,14 @@
             color: #3a3560;
         }
 
-        /* ===== אנימציות ===== */
-
-        /* המסך "מרחף" - עולה ויורד לאט מאוד */
-        @keyframes float {
-            0%   { transform: translateY(0); }
-            50%  { transform: translateY(-4px); }
-            100% { transform: translateY(0); }
-        }
-
-        /* המסך מופיע בעדינות כשעוברים אליו */
-        @keyframes appear {
-            from { opacity: 0; transform: translateY(15px); }
-            to   { opacity: 1; transform: translateY(0); }
-        }
-
-        /* ===== כל מסך במשחק - זכוכית מרחפת ===== */
+        /* ===== כל מסך במשחק - זכוכית שקופה ===== */
         .screen {
             position: relative;           /* כדי שהברק (::before) יישב בדיוק על המסך */
             max-width: 650px;
             margin: 0 auto;
             padding: 22px 26px;
             /* זכוכית: בהירה יותר למעלה ושקופה יותר למטה */
-            background: linear-gradient(145deg, rgba(255, 255, 255, 0.42), rgba(255, 255, 255, 0.14));
+            background: linear-gradient(145deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.05));
             backdrop-filter: blur(16px) saturate(140%);       /* מטשטש את מה שמאחורי המסך */
             -webkit-backdrop-filter: blur(16px) saturate(140%);
             /* מסגרת: האור "נופל" מלמעלה-שמאל, לכן שם המסגרת בהירה יותר */
@@ -66,7 +51,6 @@
             box-shadow:
                 0 6px 16px rgba(60, 40, 120, 0.12),
                 inset 0 1px 0 rgba(255, 255, 255, 0.7);
-            animation: appear 0.4s ease-out, float 6s ease-in-out 0.4s infinite;
             transition: box-shadow 0.3s;
         }
 
@@ -79,7 +63,7 @@
             right: 0;
             bottom: 0;
             border-radius: 20px;
-            background: linear-gradient(135deg, rgba(255, 255, 255, 0.35) 0%, rgba(255, 255, 255, 0) 35%);
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0) 35%);
             pointer-events: none;         /* הברק לא חוסם לחיצות */
         }
 
@@ -97,7 +81,7 @@
         select, input[type="text"] {
             font-size: 16px;
             padding: 5px 8px;
-            background-color: rgba(255, 255, 255, 0.5);
+            background-color: rgba(255, 255, 255, 0.25);
             border: 1px solid rgba(255, 255, 255, 0.8);
             border-radius: 8px;
             color: #2b2d42;
@@ -108,7 +92,7 @@
         select:hover, input[type="text"]:hover,
         select:focus, input[type="text"]:focus {
             outline: none;
-            background-color: rgba(255, 255, 255, 0.75);
+            background-color: rgba(255, 255, 255, 0.45);
             box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.45);
         }
 
@@ -119,9 +103,9 @@
             margin-top: 10px;
             cursor: pointer;
             color: #2b2d42;
-            background-color: rgba(255, 255, 255, 0.35);
+            background-color: rgba(255, 255, 255, 0.12);
             /* שכבת ברק עדינה מעל צבע הכפתור */
-            background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.45), rgba(255, 255, 255, 0));
+            background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.25), rgba(255, 255, 255, 0));
             border: 1px solid rgba(255, 255, 255, 0.7);
             border-radius: 12px;
             backdrop-filter: blur(6px);
@@ -151,28 +135,28 @@
         /* כפתורי התחלה ואישור - כחול */
         #startButton, #confirmSecretButton, #computerStartButton,
         #netConnectButton, #netSendSecretButton, #paperStartButton, #paperSendButton {
-            background-color: rgba(90, 140, 255, 0.42);
+            background-color: rgba(90, 140, 255, 0.2);
         }
 
         /* כפתורים של המשחק נגד המחשב - סגול */
         #computerButton, #computerNextButton, #normalComputerButton, #paperComputerButton {
-            background-color: rgba(160, 100, 240, 0.4);
+            background-color: rgba(160, 100, 240, 0.2);
         }
 
         /* כפתור המשחק ברשת - טורקיז */
         #networkButton {
-            background-color: rgba(40, 190, 190, 0.4);
+            background-color: rgba(40, 190, 190, 0.2);
         }
 
         /* כפתורי "נחש" - ירוק */
         #guessButton, #netGuessButton {
-            background-color: rgba(60, 190, 110, 0.42);
+            background-color: rgba(60, 190, 110, 0.2);
         }
 
         /* כפתורי "משחק חדש" וחזרה - ורוד */
         #newGameButton, #computerNewGameButton, #netNewGameButton,
         #paperNewGameButton, #computerModeBackButton {
-            background-color: rgba(255, 120, 170, 0.38);
+            background-color: rgba(255, 120, 170, 0.2);
         }
 
         /* הודעות שגיאה */
@@ -254,7 +238,7 @@
         .modeOption {
             padding: 10px 15px;
             margin-bottom: 12px;
-            background: linear-gradient(145deg, rgba(255, 255, 255, 0.35), rgba(255, 255, 255, 0.12));
+            background: linear-gradient(145deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.04));
             border: 1px solid rgba(255, 255, 255, 0.5);
             border-radius: 14px;
             box-shadow: 0 3px 10px rgba(60, 40, 120, 0.08);
@@ -304,7 +288,7 @@
 
         /* כשהעכבר מעל שורה - היא מודגשת בעדינות */
         .row:hover {
-            background-color: rgba(255, 255, 255, 0.22);
+            background-color: rgba(255, 255, 255, 0.15);
         }
 
         .rowLabel {
@@ -317,7 +301,7 @@
             display: flex;
             align-items: center;
             gap: 4px;
-            background: linear-gradient(145deg, rgba(255, 255, 255, 0.45), rgba(255, 255, 255, 0.2));
+            background: linear-gradient(145deg, rgba(255, 255, 255, 0.25), rgba(255, 255, 255, 0.08));
             border: 1px solid rgba(255, 255, 255, 0.55);
             padding: 5px 8px;
             border-radius: 10px;
@@ -368,13 +352,6 @@
         .rowInfo {
             font-size: 14px;
             color: #3a3560;
-        }
-
-        /* מי שביקש במחשב "פחות אנימציות" - המסך לא ירחף */
-        @media (prefers-reduced-motion: reduce) {
-            .screen {
-                animation: none;
-            }
         }
     </style>
 </head>
