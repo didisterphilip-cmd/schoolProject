@@ -1228,6 +1228,14 @@ document.getElementById("netNewGameButton").addEventListener("click", netNewGame
 let paperBullsSelect;        // רשימת הבחירה של מספר הבול בשורה הנוכחית
 let paperHitsSelect;         // רשימת הבחירה של מספר הפגיעה בשורה הנוכחית
 let paperGameOver = false;   // האם המשחק נגמר
+let paperFixing = false;     // האם השחקן עכשיו מתקן תשובות (אחרי שהתשובות סתרו זו את זו)
+
+// ההיסטוריה של המשחק - כל הניחושים של המחשב והתשובות של השחקן.
+// paperGuesses[2] = הניחוש השלישי, paperBullsSelects[2] = רשימת הבול שלו, וכן הלאה.
+// שומרים את רשימות הבחירה עצמן (ולא רק את המספרים), כדי שאפשר יהיה לתקן תשובה ישנה.
+let paperGuesses = [];
+let paperBullsSelects = [];
+let paperHitsSelects = [];
 let paperInfoText;           // הטקסט של בול/פגיעה בשורה הנוכחית (כדי להוסיף לו "נשארו X אפשרויות")
 let paperRightButton;        // הכפתור "המחשב צדק!" של השורה הנוכחית
 
@@ -1254,11 +1262,17 @@ function openComputerModes() {
 // פועלת כשלוחצים על "צירוף על דף - אני נותן משוב"
 function paperModeClicked() {
     paperGameOver = false;
+    paperFixing = false;
     computerAttempts = 0;
+    paperGuesses = [];
+    paperBullsSelects = [];
+    paperHitsSelects = [];
+    document.getElementById("paperSendButton").textContent = "שלח משוב";
 
     // ההסבר לשחקן: כמה צבעים לרשום ומאילו צבעים
     showMessage("paperInfo", "רשום על דף צירוף סודי של " + numSpots +
-        " צבעים, מתוך הצבעים האלה, בלי לחזור על אותו צבע פעמיים. אל תראה אותו למחשב!");
+        " צבעים, מתוך הצבעים האלה, בלי לחזור על אותו צבע פעמיים. אל תראה אותו למחשב! " +
+        "שים לב: מקום 1 הוא הימני ביותר (כמו שקוראים בעברית).");
 
     // מציגים את הצבעים שבמשחק (רק להצגה - לא לוחצים עליהם)
     let colorsArea = document.getElementById("paperColors");
@@ -1329,8 +1343,9 @@ function showPaperGuess() {
     cubesArea.className = "cubes";
     for (let i = 0; i < numSpots; i++) {
         let cube = document.createElement("div");
-        cube.className = "cube";
+        cube.className = "cube numbered";
         paintCube(cube, computerGuess[i]);
+        cube.textContent = i + 1;     // מספר המקום - כדי שיהיה ברור שמקום 1 הוא הימני
         cubesArea.appendChild(cube);
     }
     row.appendChild(cubesArea);
@@ -1350,6 +1365,11 @@ function showPaperGuess() {
     feedbackArea.appendChild(hitsLabel);
     paperHitsSelect = createNumberSelect(numSpots);
     feedbackArea.appendChild(paperHitsSelect);
+
+    // שומרים את הניחוש ואת רשימות הבחירה שלו בהיסטוריה
+    paperGuesses.push(computerGuess);
+    paperBullsSelects.push(paperBullsSelect);
+    paperHitsSelects.push(paperHitsSelect);
 
     row.appendChild(feedbackArea);
 
@@ -1389,9 +1409,9 @@ function paperRightClicked() {
     // כל המקומות בול: בול = מספר המקומות, פגיעה = 0
     paperBullsSelect.value = numSpots;
     paperHitsSelect.value = 0;
-    paperBullsSelect.disabled = true;
-    paperHitsSelect.disabled = true;
+    lockAllAnswers(true);
     paperRightButton.style.display = "none";
+    showMessage("paperMessage", "");
 
     endPaperGame("המחשב ניחש את הצירוף שלך! מספר ניסיונות: " + computerAttempts, "lose");
 }
@@ -1399,46 +1419,105 @@ function paperRightClicked() {
 
 // ----- קבלת המשוב מהשחקן -----
 
-// פועלת כשלוחצים על "שלח משוב"
+// פועלת כשלוחצים על "שלח משוב" (או "בדוק שוב" - אחרי תיקון תשובות)
 function paperSendClicked() {
     if (paperGameOver) {
         return;
     }
 
-    // קוראים את המספרים שהשחקן בחר
-    let bulls = Number(paperBullsSelect.value);
-    let hits = Number(paperHitsSelect.value);
-
-    // בדיקה: אי אפשר שיהיו יותר בול + פגיעה ממספר המקומות בצירוף
-    if (bulls + hits > numSpots) {
-        alert("בול + פגיעה לא יכולים להיות יותר מ-" + numSpots + ". בדוק את המשוב שוב.");
-        return;
+    // בדיקה: בכל תשובה, בול + פגיעה לא יכולים להיות יותר ממספר המקומות
+    for (let i = 0; i < paperGuesses.length; i++) {
+        let bulls = Number(paperBullsSelects[i].value);
+        let hits = Number(paperHitsSelects[i].value);
+        if (bulls + hits > numSpots) {
+            alert("בניחוש " + (i + 1) + ": בול + פגיעה לא יכולים להיות יותר מ-" + numSpots + ". בדוק את התשובה שוב.");
+            return;
+        }
     }
 
-    // המשוב נשלח - נועלים את הבחירה בשורה הזו ומסתירים את הכפתור "המחשב צדק!"
-    paperBullsSelect.disabled = true;
-    paperHitsSelect.disabled = true;
+    // נועלים את כל התשובות ומסתירים את הכפתור "המחשב צדק!"
+    lockAllAnswers(true);
     paperRightButton.style.display = "none";
 
-    // כל המקומות בול - המחשב ניחש את הצירוף!
-    if (bulls == numSpots) {
+    // אם בניחוש האחרון כל המקומות בול - המחשב ניחש את הצירוף!
+    if (Number(paperBullsSelect.value) == numSpots) {
+        showMessage("paperMessage", "");
         endPaperGame("המחשב ניחש את הצירוף שלך! מספר ניסיונות: " + computerAttempts, "lose");
         return;
     }
 
-    // שלב 3: מוחקים מ-S את כל הצירופים שלא מתאימים למשוב (הפונקציה מחלק 2)
-    removeImpossibleCodes(computerGuess, bulls, hits);
+    // שלב 3: בונים את S מחדש ומוחקים ממנו כל צירוף שלא מתאים לאחת התשובות.
+    // (בונים מחדש בכל פעם, כדי שאם השחקן תיקן תשובה ישנה - המחשב ישתמש בתשובה המתוקנת)
+    applyAllAnswers(-1);
     paperInfoText.textContent = "נשארו " + possibleCodes.length + " אפשרויות";
 
-    // אם לא נשאר אף צירוף - אין צירוף שמתאים לכל המשובים, כלומר הייתה טעות במשוב
+    // לא נשאר אף צירוף - התשובות סותרות זו את זו, כלומר יש טעות באחת מהן.
+    // לא מסיימים את המשחק: נותנים לשחקן לתקן את התשובות.
     if (possibleCodes.length == 0) {
-        endPaperGame("אין אף צירוף שמתאים לכל המשובים שנתת. כנראה הייתה טעות באחד המשובים.", "lose");
+        startFixing();
         return;
     }
+
+    // הכל תקין - יוצאים ממצב תיקון (אם היינו בו)
+    if (paperFixing) {
+        paperFixing = false;
+        document.getElementById("paperSendButton").textContent = "שלח משוב";
+    }
+    showMessage("paperMessage", "");
 
     // שלבים 4-6: בוחרים את הניחוש הבא (הפונקציה מחלק 2) ומציגים אותו
     computerGuess = chooseBestCode();
     showPaperGuess();
+}
+
+// בונה את S מחדש, ומוחקת ממנו כל צירוף שלא מתאים לתשובות של השחקן.
+// skip = מספר תשובה לדלג עליה (או -1 כדי להשתמש בכל התשובות).
+// הדילוג משמש כדי לבדוק איזו תשובה כנראה שגויה.
+function applyAllAnswers(skip) {
+    possibleCodes = [];
+    buildAllCodes([]);
+    for (let i = 0; i < paperGuesses.length; i++) {
+        if (i != skip) {
+            let bulls = Number(paperBullsSelects[i].value);
+            let hits = Number(paperHitsSelects[i].value);
+            removeImpossibleCodes(paperGuesses[i], bulls, hits);
+        }
+    }
+}
+
+// נועלת (lock = true) או פותחת (lock = false) את כל רשימות הבחירה של התשובות
+function lockAllAnswers(lock) {
+    for (let i = 0; i < paperGuesses.length; i++) {
+        paperBullsSelects[i].disabled = lock;
+        paperHitsSelects[i].disabled = lock;
+    }
+}
+
+// התשובות סותרות זו את זו - פותחים את כל התשובות לתיקון,
+// ומחפשים אילו תשובות כנראה שגויות: תשובה שאם מתעלמים ממנה - כן נשאר צירוף אפשרי.
+function startFixing() {
+    paperFixing = true;
+
+    let suspects = "";
+    for (let i = 0; i < paperGuesses.length; i++) {
+        applyAllAnswers(i);
+        if (possibleCodes.length > 0) {
+            if (suspects != "") {
+                suspects = suspects + ", ";
+            }
+            suspects = suspects + (i + 1);
+        }
+    }
+
+    let text = "אין אף צירוף שמתאים לכל התשובות שנתת, כלומר באחת התשובות יש טעות. ";
+    if (suspects != "") {
+        text = text + "בדוק במיוחד את התשובות לניחושים: " + suspects + ". ";
+    }
+    text = text + "תקן את התשובה השגויה ולחץ \"בדוק שוב\".";
+    showMessage("paperMessage", text);
+
+    lockAllAnswers(false);
+    document.getElementById("paperSendButton").textContent = "בדוק שוב";
 }
 
 // מסיימת את המשחק ומציגה הודעה. className = "win" או "lose" (קובע את צבע ההודעה)
