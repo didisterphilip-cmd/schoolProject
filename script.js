@@ -602,7 +602,7 @@ function computerStartClicked() {
     possibleCodes = [];
     buildAllCodes([]);
     showMessage("computerInfo", "המחשב בנה רשימה של " + possibleCodes.length +
-        " צירופים אפשריים. לחץ על \"הניחוש הבא של המחשב\" כדי לראות אותו מנחש.");
+        " צירופים אפשריים. למחשב יש " + maxAttempts + " ניסיונות. לחץ על \"הניחוש הבא של המחשב\" כדי לראות אותו מנחש.");
 
     // שלב 2: הניחוש הראשון - הצבעים הראשונים לפי הסדר: 1, 2, 3 ...
     computerGuess = [];
@@ -668,6 +668,15 @@ function computerNextClicked() {
 
     // מוסיפים לטקסט של השורה כמה צירופים נשארו ב-S
     info.textContent = info.textContent + " | נשארו " + possibleCodes.length + " אפשרויות";
+
+    // אם המחשב השתמש בכל הניסיונות (7) ולא הצליח - השחקן ניצח
+    if (computerAttempts == maxAttempts) {
+        document.getElementById("computerNextButton").style.display = "none";
+        let endMessage = document.getElementById("computerEndMessage");
+        endMessage.className = "win";
+        endMessage.textContent = "ניצחת! המחשב לא הצליח לפצח את הצירוף שלך ב-" + maxAttempts + " ניסיונות.";
+        return;
+    }
 
     // שלבים 4-6: בוחרים את הניחוש הבא
     computerGuess = chooseBestCode();
@@ -1272,7 +1281,7 @@ function paperModeClicked() {
     // ההסבר לשחקן: כמה צבעים לרשום ומאילו צבעים
     showMessage("paperInfo", "רשום על דף צירוף סודי של " + numSpots +
         " צבעים, מתוך הצבעים האלה, בלי לחזור על אותו צבע פעמיים. אל תראה אותו למחשב! " +
-        "שים לב: מקום 1 הוא הימני ביותר (כמו שקוראים בעברית).");
+        "שים לב: מקום 1 הוא הימני ביותר (כמו שקוראים בעברית). למחשב יש " + maxAttempts + " ניסיונות.");
 
     // מציגים את הצבעים שבמשחק (רק להצגה - לא לוחצים עליהם)
     let colorsArea = document.getElementById("paperColors");
@@ -1464,6 +1473,12 @@ function paperSendClicked() {
         document.getElementById("paperSendButton").textContent = "שלח משוב";
     }
     showMessage("paperMessage", "");
+
+    // אם המחשב השתמש בכל הניסיונות (7) ולא הצליח - השחקן ניצח
+    if (computerAttempts == maxAttempts) {
+        endPaperGame("ניצחת! המחשב לא הצליח לנחש את הצירוף שלך ב-" + maxAttempts + " ניסיונות.", "win");
+        return;
+    }
 
     // שלבים 4-6: בוחרים את הניחוש הבא (הפונקציה מחלק 2) ומציגים אותו
     computerGuess = chooseBestCode();
