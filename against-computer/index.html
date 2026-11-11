@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>בול פגיעה - יאיר טפר - משחק נגד המחשב</title>
+    <style>
+        /* ===== רקע הדף: צבעים רכים כדי שאפקט הזכוכית יבלוט ===== */
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            box-sizing: border-box;
+            color: #2b2d42;
+            background:
+                radial-gradient(circle at 15% 20%, rgba(255, 182, 213, 0.75), transparent 40%),
+                radial-gradient(circle at 85% 25%, rgba(160, 220, 255, 0.85), transparent 40%),
+                radial-gradient(circle at 50% 95%, rgba(200, 180, 255, 0.85), transparent 45%),
+                linear-gradient(135deg, #a8c0ff, #c9b6f2);
+            background-attachment: fixed;
+        }
+
+        h1 {
+            text-align: center;
+            color: white;
+            letter-spacing: 1px;
+            text-shadow: 0 2px 10px rgba(60, 40, 120, 0.35);
+        }
+
+        h2, h3 {
+            color: #3a3560;
+        }
+
+        /* ===== כל מסך במשחק - זכוכית שקופה ===== */
+        .screen {
+            position: relative;           /* כדי שהברק (::before) יישב בדיוק על המסך */
+            max-width: 650px;
+            margin: 0 auto;
+            padding: 22px 26px;
+            /* זכוכית: בהירה יותר למעלה ושקופה יותר למטה */
+            background: linear-gradient(145deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.05));
+            backdrop-filter: blur(16px) saturate(140%);       /* מטשטש את מה שמאחורי המסך */
+            -webkit-backdrop-filter: blur(16px) saturate(140%);
+            /* מסגרת: האור "נופל" מלמעלה-שמאל, לכן שם המסגרת בהירה יותר */
+            border: 1px solid rgba(255, 255, 255, 0.35);
+            border-top-color: rgba(255, 255, 255, 0.8);
+            border-left-color: rgba(255, 255, 255, 0.7);
+            border-radius: 20px;
+            /* צל קטן ושקוף + קו אור דק בתוך הקצה העליון */
+            box-shadow:
+                0 6px 16px rgba(60, 40, 120, 0.12),
+                inset 0 1px 0 rgba(255, 255, 255, 0.7);
+            transition: box-shadow 0.3s;
+        }
+
+        /* ברק של אור על הזכוכית (פס בהיר באלכסון בפינה העליונה) */
+        .screen::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            border-radius: 20px;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0) 35%);
+            pointer-events: none;         /* הברק לא חוסם לחיצות */
+        }
+
+        /* כשהעכבר מעל המסך - הצל מתחזק קצת */
+        .screen:hover {
+            box-shadow:
+                0 10px 26px rgba(60, 40, 120, 0.16),
+                inset 0 1px 0 rgba(255, 255, 255, 0.8);
+        }
+
+        .setting {
+            margin-bottom: 15px;
+        }
+
+        select, input[type="text"] {
+            font-size: 16px;
+            padding: 5px 8px;
+            background-color: rgba(255, 255, 255, 0.25);
+            border: 1px solid rgba(255, 255, 255, 0.8);
+            border-radius: 8px;
+            color: #2b2d42;
+            transition: box-shadow 0.2s, background-color 0.2s;
+        }
+
+        /* כשעומדים על רשימה או על תיבת טקסט - היא זוהרת */
+        select:hover, input[type="text"]:hover,
+        select:focus, input[type="text"]:focus {
+            outline: none;
+            background-color: rgba(255, 255, 255, 0.45);
+            box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.45);
+        }
+
+        /* ===== כפתורים: זכוכית צבעונית ===== */
+        button {
+            font-size: 16px;
+            padding: 9px 20px;
+            margin-top: 10px;
+            cursor: pointer;
+            color: #2b2d42;
+            background-color: rgba(255, 255, 255, 0.12);
+            /* שכבת ברק עדינה מעל צבע הכפתור */
+            background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.25), rgba(255, 255, 255, 0));
+            border: 1px solid rgba(255, 255, 255, 0.7);
+            border-radius: 12px;
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+            box-shadow:
+                0 3px 8px rgba(60, 40, 120, 0.12),
+                inset 0 1px 0 rgba(255, 255, 255, 0.7);
+            transition: transform 0.2s, box-shadow 0.2s, filter 0.2s;
+        }
+
+        /* כשהעכבר מעל כפתור - הוא עולה, מתבהר וזוהר */
+        button:hover {
+            transform: translateY(-3px);
+            filter: brightness(1.1);
+            box-shadow:
+                0 8px 18px rgba(60, 40, 120, 0.2),
+                0 0 0 3px rgba(255, 255, 255, 0.35),
+                inset 0 1px 0 rgba(255, 255, 255, 0.8);
+        }
+
+        /* כשלוחצים - הכפתור "נלחץ" למטה */
+        button:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 5px rgba(60, 40, 120, 0.15);
+        }
+
+        /* כפתורי התחלה ואישור - כחול */
+        #startButton, #confirmSecretButton, #computerStartButton,
+        #netConnectButton, #netSendSecretButton, #paperStartButton, #paperSendButton {
+            background-color: rgba(90, 140, 255, 0.2);
+        }
+
+        /* כפתורים של המשחק נגד המחשב - סגול */
+        #computerButton, #computerNextButton, #normalComputerButton, #paperComputerButton {
+            background-color: rgba(160, 100, 240, 0.2);
+        }
+
+        /* כפתור המשחק ברשת - טורקיז */
+        #networkButton {
+            background-color: rgba(40, 190, 190, 0.2);
+        }
+
+        /* כפתורי "נחש" - ירוק */
+        #guessButton, #netGuessButton {
+            background-color: rgba(60, 190, 110, 0.2);
+        }
+
+        /* כפתורי "משחק חדש" וחזרה - ורוד */
+        #newGameButton, #computerNewGameButton, #netNewGameButton,
+        #paperNewGameButton, #computerModeBackButton {
+            background-color: rgba(255, 120, 170, 0.2);
+        }
+
+        /* הכפתור הקטן "המחשב צדק!" ליד כל ניחוש במשחק "צירוף על דף" - ירוק */
+        .rightButton {
+            font-size: 13px;
+            padding: 4px 10px;
+            margin-top: 0;
+            background-color: rgba(60, 190, 110, 0.2);
+        }
+
+        /* הודעות שגיאה */
+        .message {
+            color: #c0143c;
+            font-weight: bold;
+            min-height: 22px;
+            margin-top: 10px;
+        }
+
+        /* ===== לוח הצבעים שממנו בוחרים ===== */
+        .palette {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin: 10px 0;
+        }
+
+        /* הכפתורים העגולים של הצבעים (הצבע עצמו נקבע ב-JavaScript) */
+        .colorButton {
+            width: 45px;
+            height: 45px;
+            padding: 0;
+            margin: 0;
+            border: 2px solid rgba(255, 255, 255, 0.9);
+            border-radius: 50%;
+            /* ברק עגול בצד השמאלי העליון - נראה כמו כדור זכוכית */
+            background-image: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0) 45%);
+            box-shadow: 0 3px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .colorButton:hover {
+            transform: scale(1.12);
+            filter: brightness(1.1);
+            box-shadow: 0 6px 14px rgba(0, 0, 0, 0.25);
+        }
+
+        /* הצבע שנבחר כרגע */
+        .colorButton.selected {
+            border: 4px solid white;
+            transform: scale(1.15);
+            box-shadow: 0 0 0 3px rgba(60, 40, 120, 0.6), 0 6px 14px rgba(0, 0, 0, 0.25);
+        }
+
+        /* צבע להצגה בלבד (לא לחיץ) עם השם שלו - במשחק "צירוף על דף" */
+        .colorItem {
+            text-align: center;
+            font-size: 14px;
+        }
+
+        .colorDot {
+            width: 40px;
+            height: 40px;
+            margin: 0 auto 4px auto;
+            border: 2px solid rgba(255, 255, 255, 0.9);
+            border-radius: 50%;
+            background-image: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0) 45%);
+            box-shadow: 0 3px 8px rgba(0, 0, 0, 0.2);
+            transition: transform 0.2s;
+        }
+
+        .colorItem:hover .colorDot {
+            transform: scale(1.1);
+        }
+
+        /* רשימות הבחירה של בול ופגיעה בתוך אזור המשוב */
+        .feedback select {
+            font-size: 15px;
+            padding: 2px 6px;
+            margin-left: 8px;
+        }
+
+        /* אפשרות בחירה במסך "סוג המשחק נגד המחשב" - כרטיס זכוכית קטן */
+        .modeOption {
+            padding: 10px 15px;
+            margin-bottom: 12px;
+            background: linear-gradient(145deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.04));
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            border-radius: 14px;
+            box-shadow: 0 3px 10px rgba(60, 40, 120, 0.08);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .modeOption:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 18px rgba(60, 40, 120, 0.14);
+        }
+
+        /* ===== קוביות הניחוש ===== */
+        .cubes {
+            display: flex;
+            gap: 6px;
+        }
+
+        .cube {
+            width: 40px;
+            height: 40px;
+            border: 2px solid rgba(255, 255, 255, 0.85);
+            border-radius: 8px;
+            background-color: white;
+            /* ברק עדין בפינה העליונה של הקובייה */
+            background-image: linear-gradient(135deg, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0) 50%);
+            box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .cube:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 14px rgba(0, 0, 0, 0.2);
+        }
+
+        /* קובייה עם מספר המקום עליה (בניחושים של המחשב במשחק "צירוף על דף") */
+        .cube.numbered {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            text-shadow: 0 0 3px black, 0 0 3px black;
+            cursor: default;
+        }
+
+        /* ===== שורה של ניסיון אחד ===== */
+        .row {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 15px;
+            padding: 8px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.5);
+            border-radius: 10px;
+            transition: background-color 0.2s;
+        }
+
+        /* כשהעכבר מעל שורה - היא מודגשת בעדינות */
+        .row:hover {
+            background-color: rgba(255, 255, 255, 0.15);
+        }
+
+        .rowLabel {
+            width: 70px;
+            font-weight: bold;
+        }
+
+        /* אזור המשוב - קוביות קטנות על רקע זכוכית */
+        .feedback {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            background: linear-gradient(145deg, rgba(255, 255, 255, 0.25), rgba(255, 255, 255, 0.08));
+            border: 1px solid rgba(255, 255, 255, 0.55);
+            padding: 5px 8px;
+            border-radius: 10px;
+            box-shadow: 0 2px 6px rgba(60, 40, 120, 0.08);
+        }
+
+        .fbCube {
+            width: 18px;
+            height: 18px;
+            border: 1px solid rgba(0, 0, 0, 0.3);
+            border-radius: 4px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .fb-green {
+            background-color: #22aa22;
+        }
+
+        .fb-yellow {
+            background-color: #ffcc00;
+        }
+
+        .fb-gray {
+            background-color: #999999;
+        }
+
+        .legend {
+            font-size: 14px;
+            color: #4a4870;
+        }
+
+        #endMessage, #computerEndMessage, #netEndMessage, #paperEndMessage {
+            font-size: 20px;
+            font-weight: bold;
+            text-align: center;
+            margin: 15px 0;
+        }
+
+        .win {
+            color: #138a3e;
+        }
+
+        .lose {
+            color: #c0143c;
+        }
+
+        /* הטקסט של בול/פגיעה בשורות של המחשב */
+        .rowInfo {
+            font-size: 14px;
+            color: #3a3560;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>בול פגיעה - יאיר טפר</h1>
+
+    <!-- מסך 1: הגדרות (רק מה שצריך למשחק נגד המחשב) -->
+    <div id="settingsScreen" class="screen">
+        <h2>משחק נגד המחשב - הגדרות</h2>
+
+        <div class="setting">
+            <label for="spotsSelect">מספר מקומות בצירוף:</label>
+            <select id="spotsSelect">
+                <option value="3">3</option>
+                <option value="4" selected>4</option>
+                <option value="5">5</option>
+                <option value="6">6</option>
+                <option value="7">7</option>
+                <option value="8">8</option>
+            </select>
+        </div>
+
+        <div class="setting">
+            <label for="colorsSelect">מספר צבעים במשחק:</label>
+            <select id="colorsSelect">
+                <option value="4">4</option>
+                <option value="5">5</option>
+                <option value="6" selected>6</option>
+                <option value="7">7</option>
+                <option value="8">8</option>
+            </select>
+        </div>
+
+        <button id="computerButton">שחק נגד מחשב</button>
+        <div id="settingsMessage" class="message"></div>
+    </div>
+
+    <!-- מסך 4: משחק נגד המחשב - השחקן בוחר צירוף והמחשב מנחש -->
+    <div id="computerScreen" class="screen" style="display: none;">
+        <h2>משחק נגד המחשב</h2>
+        <p id="computerInfo"></p>
+
+        <div id="computerSetupPart">
+            <p>בחר צבע מהלוח ואז לחץ על קובייה כדי לבנות צירוף סודי.
+                אסור לחזור על אותו צבע פעמיים. המחשב ינסה לנחש את הצירוף שלך!</p>
+            <div id="computerPalette" class="palette"></div>
+        </div>
+
+        <h3>הצירוף הסודי שלך:</h3>
+        <div id="computerSecretCubes" class="cubes"></div>
+
+        <button id="computerStartButton">אישור - שהמחשב יתחיל לנחש</button>
+        <div id="computerMessage" class="message"></div>
+
+        <div id="computerBoard"></div>
+
+        <button id="computerNextButton">הניחוש הבא של המחשב</button>
+        <div id="computerEndMessage"></div>
+
+        <button id="computerNewGameButton">משחק חדש</button>
+    </div>
+
+    <!-- מסך 6: בחירת סוג המשחק נגד המחשב -->
+    <div id="computerModeScreen" class="screen" style="display: none;">
+        <h2>משחק נגד המחשב - בחר סוג משחק</h2>
+
+        <div class="modeOption">
+            <button id="normalComputerButton">משחק רגיל</button>
+            <p class="legend">אתה בוחר צירוף על המסך, והמשוב לכל ניחוש מחושב אוטומטית.</p>
+        </div>
+
+        <div class="modeOption">
+            <button id="paperComputerButton">צירוף על דף - אני נותן משוב</button>
+            <p class="legend">אתה רושם צירוף על דף, והמחשב לא יודע אותו בכלל.
+                אחרי כל ניחוש אתה אומר למחשב מה המשוב, והוא ממשיך לנחש לפיו.</p>
+        </div>
+
+        <button id="computerModeBackButton">חזרה</button>
+    </div>
+
+    <!-- מסך 7: צירוף על דף - השחקן נותן משוב והמחשב מנחש -->
+    <div id="paperScreen" class="screen" style="display: none;">
+        <h2>צירוף על דף - המחשב מנחש</h2>
+
+        <div id="paperIntroPart">
+            <p id="paperInfo"></p>
+            <div id="paperColors" class="palette"></div>
+            <button id="paperStartButton">רשמתי צירוף - שהמחשב יתחיל לנחש</button>
+        </div>
+
+        <p id="paperHelp" class="legend">
+            איך נותנים משוב: ליד כל ניחוש של המחשב בוחרים שני מספרים, ולוחצים "שלח משוב".
+            בול = כמה צבעים נמצאים במקום הנכון.
+            פגיעה = כמה צבעים נמצאים בצירוף שלך, אבל במקום אחר.
+        </p>
+
+        <div id="paperBoard"></div>
+
+        <button id="paperSendButton">שלח משוב</button>
+        <div id="paperMessage" class="message"></div>
+        <div id="paperEndMessage"></div>
+
+        <button id="paperNewGameButton">משחק חדש</button>
+    </div>
+
+    <script src="computer.js"></script>
+</body>
+</html>
